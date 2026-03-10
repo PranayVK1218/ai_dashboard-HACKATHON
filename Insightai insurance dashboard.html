@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsightAI — India Life Insurance Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #040810;
+    --surface: #080f1a;
+    --surface2: #0d1826;
+    --border: #1a2d47;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff8f;
+    --accent4: #c77dff;
+    --text: #e8f4fd;
+    --muted: #6a8fa8;
+    --glow: rgba(0,212,255,0.15);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; overflow-x:hidden; }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity:0.4;
+  }
+
+  /* GRID LINES */
+  body::after {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 60px 60px;
+    opacity:0.15;
+  }
+
+  /* HEADER */
+  header {
+    position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 32px; height:64px;
+    background:rgba(4,8,16,0.85); backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border);
+  }
+  .logo {
+    display:flex; align-items:center; gap:10px; font-size:18px; font-weight:800; letter-spacing:-0.5px;
+  }
+  .logo-icon {
+    width:32px; height:32px; background:var(--accent); border-radius:8px;
+    display:flex; align-items:center; justify-content:center; color:#000; font-size:16px; font-weight:900;
+    box-shadow: 0 0 20px var(--accent);
+  }
+  .logo span { color:var(--accent); }
+  .header-right { display:flex; align-items:center; gap:16px; }
+  .year-selector {
+    display:flex; gap:4px;
+  }
+  .year-btn {
+    padding:6px 12px; border-radius:6px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); font-family:'Syne',sans-serif; font-size:12px; cursor:pointer;
+    transition:all 0.2s;
+  }
+  .year-btn.active { background:var(--accent); color:#000; border-color:var(--accent); font-weight:700; box-shadow:0 0 12px var(--accent); }
+  .year-btn:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+
+  /* MAIN LAYOUT */
+  main { position:relative; z-index:1; padding:32px; max-width:1600px; margin:0 auto; }
+
+  /* AI CHAT SECTION */
+  .ai-section {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    margin-bottom:32px;
+    overflow:hidden;
+    box-shadow: 0 0 40px rgba(0,212,255,0.05);
+  }
+  .ai-header {
+    padding:20px 24px 16px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:12px;
+  }
+  .ai-badge {
+    background: linear-gradient(135deg, var(--accent), var(--accent4));
+    color:#000; font-size:10px; font-weight:800; letter-spacing:1px;
+    padding:3px 8px; border-radius:4px;
+  }
+  .ai-title { font-size:14px; color:var(--muted); }
+  .ai-body { padding:20px 24px; }
+  .chat-messages {
+    max-height:300px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:12px;
+    margin-bottom:16px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+  .msg {
+    display:flex; gap:10px; animation: fadeUp 0.3s ease;
+  }
+  .msg-avatar {
+    width:32px; height:32px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    font-weight:800;
+  }
+  .msg-avatar.ai { background:linear-gradient(135deg,var(--accent),var(--accent4)); color:#000; }
+  .msg-avatar.user { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .msg-bubble {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:12px; padding:12px 16px; font-size:13px; line-height:1.6;
+    max-width:85%; color:var(--text);
+  }
+  .msg.user { flex-direction:row-reverse; }
+  .msg.user .msg-bubble { background:rgba(0,212,255,0.08); border-color:rgba(0,212,255,0.2); }
+  .msg-bubble strong { color:var(--accent); }
+  .msg-bubble .stat-inline {
+    display:inline-flex; gap:16px; flex-wrap:wrap; margin-top:8px;
+  }
+  .stat-inline span { 
+    background:rgba(0,212,255,0.1); border:1px solid rgba(0,212,255,0.2);
+    padding:3px 10px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent);
+  }
+
+  .chat-input-row {
+    display:flex; gap:8px;
+  }
+  .chat-input {
+    flex:1; background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; padding:12px 16px; color:var(--text); font-family:'Syne',sans-serif; font-size:14px;
+    outline:none; transition:border-color 0.2s;
+  }
+  .chat-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,212,255,0.1); }
+  .chat-input::placeholder { color:var(--muted); }
+  .send-btn {
+    padding:12px 20px; background:var(--accent); color:#000; border:none;
+    border-radius:10px; font-family:'Syne',sans-serif; font-weight:700; font-size:14px;
+    cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  }
+  .send-btn:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(0,212,255,0.4); }
+  .send-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+  .quick-prompts { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .qp {
+    padding:6px 12px; border-radius:20px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); font-size:12px; cursor:pointer; font-family:'Syne',sans-serif;
+    transition:all 0.2s;
+  }
+  .qp:hover { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.05); }
+
+  /* STATS ROW */
+  .stats-grid {
+    display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:24px;
+  }
+  .stat-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px;
+    position:relative; overflow:hidden;
+    transition:transform 0.2s, box-shadow 0.2s;
+  }
+  .stat-card:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  }
+  .stat-card.c1::before { background:linear-gradient(90deg,var(--accent),transparent); }
+  .stat-card.c2::before { background:linear-gradient(90deg,var(--accent3),transparent); }
+  .stat-card.c3::before { background:linear-gradient(90deg,var(--accent2),transparent); }
+  .stat-card.c4::before { background:linear-gradient(90deg,var(--accent4),transparent); }
+  .stat-label { font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+  .stat-value { font-size:28px; font-weight:800; letter-spacing:-1px; margin-bottom:4px; }
+  .stat-card.c1 .stat-value { color:var(--accent); }
+  .stat-card.c2 .stat-value { color:var(--accent3); }
+  .stat-card.c3 .stat-value { color:var(--accent2); }
+  .stat-card.c4 .stat-value { color:var(--accent4); }
+  .stat-sub { font-size:12px; color:var(--muted); }
+  .stat-trend { position:absolute; top:16px; right:16px; font-size:11px; font-family:'JetBrains Mono',monospace; }
+  .trend-up { color:var(--accent3); }
+  .trend-dn { color:var(--accent2); }
+
+  /* CHARTS */
+  .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; }
+  .charts-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; margin-bottom:24px; }
+  .chart-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px; position:relative;
+  }
+  .chart-card.wide { grid-column: span 2; }
+  .chart-title { font-size:13px; font-weight:700; letter-spacing:0.5px; margin-bottom:4px; }
+  .chart-sub { font-size:11px; color:var(--muted); margin-bottom:20px; }
+  .chart-wrap { position:relative; height:260px; }
+  .chart-wrap-sm { position:relative; height:200px; }
+  .chart-wrap-lg { position:relative; height:320px; }
+
+  /* TABLE */
+  .table-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; margin-bottom:24px;
+  }
+  .table-header {
+    padding:20px 24px 16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .table-search {
+    background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+    padding:8px 12px; color:var(--text); font-family:'Syne',sans-serif; font-size:13px;
+    outline:none; width:240px;
+  }
+  .table-search:focus { border-color:var(--accent); }
+  table { width:100%; border-collapse:collapse; }
+  th { 
+    padding:12px 20px; text-align:left; font-size:11px; letter-spacing:1px; 
+    color:var(--muted); text-transform:uppercase; border-bottom:1px solid var(--border);
+    background:var(--surface2); cursor:pointer;
+    user-select:none;
+  }
+  th:hover { color:var(--accent); }
+  td { padding:14px 20px; font-size:13px; border-bottom:1px solid rgba(26,45,71,0.5); }
+  tr:hover td { background:rgba(0,212,255,0.03); }
+  tr:last-child td { border-bottom:none; }
+  .ratio-bar {
+    display:flex; align-items:center; gap:10px;
+  }
+  .bar-track {
+    flex:1; height:6px; background:var(--surface2); border-radius:3px; overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .bar-fill { height:100%; border-radius:3px; transition:width 0.6s ease; }
+  .ratio-num { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent3); min-width:45px; }
+  .badge {
+    padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; font-family:'JetBrains Mono',monospace;
+  }
+  .badge-good { background:rgba(57,255,143,0.1); color:var(--accent3); border:1px solid rgba(57,255,143,0.2); }
+  .badge-warn { background:rgba(255,107,53,0.1); color:var(--accent2); border:1px solid rgba(255,107,53,0.2); }
+  .insurer-name { font-weight:700; }
+
+  /* LOADING */
+  .typing { display:flex; gap:4px; align-items:center; padding:8px 0; }
+  .typing span {
+    width:6px; height:6px; background:var(--accent); border-radius:50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay:0.2s; }
+  .typing span:nth-child(3) { animation-delay:0.4s; }
+
+  /* FOOTER */
+  footer {
+    text-align:center; padding:32px; color:var(--muted); font-size:12px;
+    border-top:1px solid var(--border); margin-top:32px; position:relative; z-index:1;
+  }
+
+  /* GLOW ORBS */
+  .orb {
+    position:fixed; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0; opacity:0.15;
+  }
+  .orb1 { width:400px; height:400px; background:var(--accent); top:-100px; left:-100px; }
+  .orb2 { width:300px; height:300px; background:var(--accent4); bottom:-50px; right:-50px; }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(12px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes bounce {
+    0%,60%,100% { transform:translateY(0); }
+    30% { transform:translateY(-6px); }
+  }
+
+  .section-label {
+    font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase;
+    margin-bottom:16px; padding-left:2px;
+  }
+
+  /* RESPONSIVE */
+  @media(max-width:1100px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .charts-row, .charts-row-3 { grid-template-columns:1fr; }
+    .chart-card.wide { grid-column:span 1; }
+  }
+  @media(max-width:640px) {
+    main { padding:16px; }
+    .stats-grid { grid-template-columns:1fr; }
+    header { padding:0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <span>Insight</span>AI
+  </div>
+  <div class="header-right">
+    <div class="year-selector" id="yearSelector"></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- AI CHAT -->
+  <div class="section-label">🤖 CONVERSATIONAL AI ANALYST</div>
+  <div class="ai-section">
+    <div class="ai-header">
+      <div class="ai-badge">AI POWERED</div>
+      <div class="ai-title">Ask anything about India Life Insurance Claims data (2017–2022)</div>
+    </div>
+    <div class="ai-body">
+      <div class="quick-prompts" id="quickPrompts"></div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="e.g. Which insurer has the highest claims settlement ratio in 2021-22?" />
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Ask AI ↗</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="section-label">📊 KEY PERFORMANCE INDICATORS — <span id="kpiYear">2021-22</span></div>
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <!-- MAIN CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Claims Settlement Ratio (by Number)</div>
+      <div class="chart-sub">Top 15 insurers — higher is better</div>
+      <div class="chart-wrap-lg"><canvas id="ratioChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Total Claims Volume</div>
+      <div class="chart-sub">Claims intimated vs paid (in numbers)</div>
+      <div class="chart-wrap-lg"><canvas id="volumeChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row-3">
+    <div class="chart-card">
+      <div class="chart-title">Industry Trend</div>
+      <div class="chart-sub">Avg settlement ratio 2017–2022</div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Claims Distribution</div>
+      <div class="chart-sub">Paid / Repudiated / Pending breakdown</div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Repudiation Rate</div>
+      <div class="chart-sub">% of claims rejected/repudiated</div>
+      <div class="chart-wrap"><canvas id="repuChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card wide">
+      <div class="chart-title">Year-over-Year: Claims Paid (₹ Crore)</div>
+      <div class="chart-sub">Top 8 insurers — claims paid amount trend</div>
+      <div class="chart-wrap"><canvas id="yoyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DATA TABLE -->
+  <div class="section-label">📋 DETAILED INSURER ANALYSIS</div>
+  <div class="table-card">
+    <div class="table-header">
+      <div>
+        <div style="font-size:14px;font-weight:700">All Insurers — <span id="tableYear">2021-22</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Individual Death Claims</div>
+      </div>
+      <input class="table-search" id="tableSearch" placeholder="Search insurer..." oninput="filterTable()" />
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('life_insurer')"># Insurer ↕</th>
+            <th onclick="sortTable('total_claims_no')">Total Claims ↕</th>
+            <th onclick="sortTable('claims_paid_no')">Claims Paid ↕</th>
+            <th onclick="sortTable('claims_paid_ratio_no')">Settlement Ratio ↕</th>
+            <th onclick="sortTable('claims_repudiated_no')">Repudiated ↕</th>
+            <th onclick="sortTable('claims_paid_amt')">Amt Paid (₹Cr) ↕</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  InsightAI Dashboard · India Life Insurance Claims Data (IRDAI) · 2017–2022 · Powered by AI Analytics
+</footer>
+
+<script>
+// ======== DATA ========
+const RAW_DATA = [{"life_insurer": "ABSL", "year": "2021-22", "claims_pending_start_no": 11.0, "claims_pending_start_amt": 3.637907524440021, "claims_intimated_no": 9997.0, "claims_intimated_amt": 876.6850449225901, "total_claims_no": 10008.0, "total_claims_amt": 880.3229524470302, "claims_paid_no": 9815.0, "claims_paid_amt": 846.43431385759, "claims_repudiated_no": 186.0, "claims_repudiated_amt": 32.98099327508, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 7.0, "claims_pending_end_amt": 0.9076453143601172, "claims_paid_ratio_no": 0.9807154276578736, "claims_paid_ratio_amt": 0.9615043110085452, "claims_repudiated_rejected_ratio_no": 0.0185851318944844, "claims_repudiated_rejected_ratio_amt": 0.0374646522431374, "claims_pending_ratio_no": 0.0006994404476418, "claims_pending_ratio_amt": 0.0010310367483173, "category": "Individual Death Claims"}, {"life_insurer": "Aegon", "year": "2021-22", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 720.0, "claims_intimated_amt": 276.48, "total_claims_no": 720.0, "total_claims_amt": 276.48, "claims_paid_no": 713.0, "claims_paid_amt": 273.04, "claims_repudiated_no": 6.0, "claims_repudiated_amt": 3.42, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.0199999999999977, "claims_paid_ratio_no": 0.9902777777777778, "claims_paid_ratio_amt": 0.9875578703703703, "claims_repudiated_rejected_ratio_no": 0.0083333333333333, "claims_repudiated_rejected_ratio_amt": 0.0123697916666666, "claims_pending_ratio_no": 0.0013888888888888, "claims_pending_ratio_amt": 7.233796296295499e-05, "category": "Individual Death Claims"}, {"life_insurer": "Ageas", "year": "2021-22", "claims_pending_start_no": 50.0, "claims_pending_start_amt": 6.698501543, "claims_intimated_no": 2644.0, "claims_intimated_amt": 128.0327579171999, "total_claims_no": 2694.0, "total_claims_amt": 134.73125946019988, "claims_paid_no": 2614.0, "claims_paid_amt": 122.6292489601999, "claims_repudiated_no": 57.0, "claims_repudiated_amt": 8.6695374, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 23.0, "claims_pending_end_amt": 3.432473099999978, "claims_paid_ratio_no": 0.9703043801039348, "claims_paid_ratio_amt": 0.9101766691079218, "claims_repudiated_rejected_ratio_no": 0.0211581291759465, "claims_repudiated_rejected_ratio_amt": 0.0643468890199235, "claims_pending_ratio_no": 0.0085374907201187, "claims_pending_ratio_amt": 0.0254764418721547, "category": "Individual Death Claims"}, {"life_insurer": "Aviva", "year": "2021-22", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 1.0658141036401504e-14, "claims_intimated_no": 1672.0, "claims_intimated_amt": 270.9491353, "total_claims_no": 1672.0, "total_claims_amt": 270.9491353, "claims_paid_no": 1645.0, "claims_paid_amt": 266.6992005, "claims_repudiated_no": 27.0, "claims_repudiated_amt": 4.2499348, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 5.3290705182007506e-15, "claims_paid_ratio_no": 0.9838516746411484, "claims_paid_ratio_amt": 0.9843146397374756, "claims_repudiated_rejected_ratio_no": 0.0161483253588516, "claims_repudiated_rejected_ratio_amt": 0.0156853602625245, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 1.9668158425013253e-17, "category": "Individual Death Claims"}, {"life_insurer": "Baj Alz", "year": "2021-22", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 3.7, "claims_intimated_no": 21045.0, "claims_intimated_amt": 822.2737754914108, "total_claims_no": 21050.0, "total_claims_amt": 825.9737754914108, "claims_paid_no": 20844.0, "claims_paid_amt": 771.8780358884093, "claims_repudiated_no": 195.0, "claims_repudiated_amt": 44.725080377000005, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 11.0, "claims_pending_end_amt": 9.370659226001557, "claims_paid_ratio_no": 0.9902137767220902, "claims_paid_ratio_amt": 0.9345067104935416, "claims_repudiated_rejected_ratio_no": 0.0092636579572446, "claims_repudiated_rejected_ratio_amt": 0.0541483055565425, "claims_pending_ratio_no": 0.000522565320665, "claims_pending_ratio_amt": 0.0113449839499159, "category": "Individual Death Claims"}, {"life_insurer": "Bharti Axa", "year": "2021-22", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 3203.0, "claims_intimated_amt": 243.5880589976307, "total_claims_no": 3203.0, "total_claims_amt": 243.5880589976307, "claims_paid_no": 3174.0, "claims_paid_amt": 234.7198948926308, "claims_repudiated_no": 27.0, "claims_repudiated_amt": 2.044654105, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 6.82350999999992, "claims_paid_ratio_no": 0.9909459881361224, "claims_paid_ratio_amt": 0.9635936008460654, "claims_repudiated_rejected_ratio_no": 0.0084295972525757, "claims_repudiated_rejected_ratio_amt": 0.0083939012175464, "claims_pending_ratio_no": 0.0006244146113019, "claims_pending_ratio_amt": 0.0280124979363881, "category": "Individual Death Claims"}, {"life_insurer": "Can HSBC", "year": "2021-22", "claims_pending_start_no": 25.0, "claims_pending_start_amt": 5.867974300000001, "claims_intimated_no": 2788.0, "claims_intimated_amt": 282.23341791599995, "total_claims_no": 2813.0, "total_claims_amt": 288.10139221599997, "claims_paid_no": 2769.0, "claims_paid_amt": 277.7949103980005, "claims_repudiated_no": 41.0, "claims_repudiated_amt": 7.806481817999999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 2.4999999999994413, "claims_paid_ratio_no": 0.9843583362957696, "claims_paid_ratio_amt": 0.9642261991907616, "claims_repudiated_rejected_ratio_no": 0.0145751866334873, "claims_repudiated_rejected_ratio_amt": 0.0270963002224827, "claims_pending_ratio_no": 0.0010664770707429, "claims_pending_ratio_amt": 0.0086775005867555, "category": "Individual Death Claims"}, {"life_insurer": "Edelws", "year": "2021-22", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 3.0, "claims_intimated_no": 993.0, "claims_intimated_amt": 156.86310377299998, "total_claims_no": 995.0, "total_claims_amt": 159.86310377299998, "claims_paid_no": 976.0, "claims_paid_amt": 152.062587865, "claims_repudiated_no": 19.0, "claims_repudiated_amt": 7.800515908, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -3.3750779948604765e-14, "claims_paid_ratio_no": 0.9809045226130654, "claims_paid_ratio_amt": 0.9512050265264684, "claims_repudiated_rejected_ratio_no": 0.0190954773869346, "claims_repudiated_rejected_ratio_amt": 0.0487949734735318, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -2.111230118272299e-16, "category": "Individual Death Claims"}, {"life_insurer": "Exide", "year": "2021-22", "claims_pending_start_no": 63.0, "claims_pending_start_amt": 8.784217400000024, "claims_intimated_no": 7216.0, "claims_intimated_amt": 309.83329421800016, "total_claims_no": 7279.0, "total_claims_amt": 318.6175116180002, "claims_paid_no": 7213.0, "claims_paid_amt": 306.8087789380001, "claims_repudiated_no": 7.0, "claims_repudiated_amt": 0.3208976, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 59.0, "claims_pending_end_amt": 11.487835080000105, "claims_paid_ratio_no": 0.9909328204423684, "claims_paid_ratio_amt": 0.962937590529682, "claims_repudiated_rejected_ratio_no": 0.0009616705591427, "claims_repudiated_rejected_ratio_amt": 0.0010071561929236, "claims_pending_ratio_no": 0.0081055089984888, "claims_pending_ratio_amt": 0.0360552532773942, "category": "Individual Death Claims"}, {"life_insurer": "Fut Genli", "year": "2021-22", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 2.711306, "claims_intimated_no": 1656.0, "claims_intimated_amt": 83.98179060241003, "total_claims_no": 1664.0, "total_claims_amt": 86.69309660241002, "claims_paid_no": 1600.0, "claims_paid_amt": 77.67319543040996, "claims_repudiated_no": 64.0, "claims_repudiated_amt": 9.019901172, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 6.039613253960853e-14, "claims_paid_ratio_no": 0.9615384615384616, "claims_paid_ratio_amt": 0.895955946603604, "claims_repudiated_rejected_ratio_no": 0.0384615384615384, "claims_repudiated_rejected_ratio_amt": 0.1040440533963952, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 6.966659965625168e-16, "category": "Individual Death Claims"}, {"life_insurer": "HDFC", "year": "2021-22", "claims_pending_start_no": 178.0, "claims_pending_start_amt": 167.23848835, "claims_intimated_no": 26944.0, "claims_intimated_amt": 2751.0057832019957, "total_claims_no": 27122.0, "total_claims_amt": 2918.2442715519956, "claims_paid_no": 26758.0, "claims_paid_amt": 2608.221586656002, "claims_repudiated_no": 136.0, "claims_repudiated_amt": 107.3566806, "claims_rejected_no": 188.0, "claims_rejected_amt": 171.828822256, "claims_unclaimed_no": 17.0, "claims_unclaimed_amt": 5.65633644, "claims_pending_end_no": 23.0, "claims_pending_end_amt": 25.18084559999419, "claims_paid_ratio_no": 0.9865791608288474, "claims_paid_ratio_amt": 0.8937639703714328, "claims_repudiated_rejected_ratio_no": 0.0119460216798171, "claims_repudiated_rejected_ratio_amt": 0.0956689971355695, "claims_pending_ratio_no": 0.0008480200575178, "claims_pending_ratio_amt": 0.0086287655373696, "category": "Individual Death Claims"}, {"life_insurer": "ICICI", "year": "2021-22", "claims_pending_start_no": 16.0, "claims_pending_start_amt": 7.823212343975997, "claims_intimated_no": 22265.0, "claims_intimated_amt": 3110.2158715408195, "total_claims_no": 22281.0, "total_claims_amt": 3118.0390838847957, "claims_paid_no": 21795.0, "claims_paid_amt": 2977.495652192047, "claims_repudiated_no": 398.0, "claims_repudiated_amt": 112.253637921, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 8.0, "claims_unclaimed_amt": 0.774485620424, "claims_pending_end_no": 80.0, "claims_pending_end_amt": 27.51530815132452, "claims_paid_ratio_no": 0.9781876935505588, "claims_paid_ratio_amt": 0.9549256991616526, "claims_repudiated_rejected_ratio_no": 0.0178627530182666, "claims_repudiated_rejected_ratio_amt": 0.0360013569108768, "claims_pending_ratio_no": 0.0035905031192495, "claims_pending_ratio_amt": 0.0088245552448441, "category": "Individual Death Claims"}, {"life_insurer": "Indiafirst", "year": "2021-22", "claims_pending_start_no": 15.0, "claims_pending_start_amt": 3.95, "claims_intimated_no": 4922.0, "claims_intimated_amt": 245.57627010699997, "total_claims_no": 4937.0, "total_claims_amt": 249.52627010699996, "claims_paid_no": 4785.0, "claims_paid_amt": 227.30879027800003, "claims_repudiated_no": 143.0, "claims_repudiated_amt": 18.18176921, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 9.0, "claims_pending_end_amt": 4.035710618999929, "claims_paid_ratio_no": 0.969212072108568, "claims_paid_ratio_amt": 0.9109613596216832, "claims_repudiated_rejected_ratio_no": 0.0289649584768077, "claims_repudiated_rejected_ratio_amt": 0.0728651504396848, "claims_pending_ratio_no": 0.0018229694146242, "claims_pending_ratio_amt": 0.0161734899386319, "category": "Individual Death Claims"}, {"life_insurer": "Kotak", "year": "2021-22", "claims_pending_start_no": 16.0, "claims_pending_start_amt": 7.276997686, "claims_intimated_no": 7117.0, "claims_intimated_amt": 606.3103075589993, "total_claims_no": 7133.0, "total_claims_amt": 613.5873052449992, "claims_paid_no": 7049.0, "claims_paid_amt": 586.1454367059971, "claims_repudiated_no": 60.0, "claims_repudiated_amt": 19.126574967, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 24.0, "claims_pending_end_amt": 8.315293572002144, "claims_paid_ratio_no": 0.9882237487733072, "claims_paid_ratio_amt": 0.9552763424138234, "claims_repudiated_rejected_ratio_no": 0.0084116080190663, "claims_repudiated_rejected_ratio_amt": 0.0311717253657374, "claims_pending_ratio_no": 0.0033646432076265, "claims_pending_ratio_amt": 0.0135519322204391, "category": "Individual Death Claims"}, {"life_insurer": "LIC", "year": "2021-22", "claims_pending_start_no": 1725.0, "claims_pending_start_amt": 292.42, "claims_intimated_no": 1365379.0, "claims_intimated_amt": 29293.46, "total_claims_no": 1367104.0, "total_claims_amt": 29585.879999999997, "claims_paid_no": 1349865.0, "claims_paid_amt": 28408.38, "claims_repudiated_no": 8713.0, "claims_repudiated_amt": 347.18999999999994, "claims_rejected_no": 3619.0, "claims_rejected_amt": 8.5, "claims_unclaimed_no": 2625.0, "claims_unclaimed_amt": 461.66, "claims_pending_end_no": 2282.0, "claims_pending_end_amt": 360.1499999999964, "claims_paid_ratio_no": 0.9873901327185056, "claims_paid_ratio_amt": 0.9602006092095284, "claims_repudiated_rejected_ratio_no": 0.0090205280651654, "claims_repudiated_rejected_ratio_amt": 0.0120222890108389, "claims_pending_ratio_no": 0.001669221946538, "claims_pending_ratio_amt": 0.0121730365971874, "category": "Individual Death Claims"}, {"life_insurer": "Max", "year": "2021-22", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.5, "claims_intimated_no": 31034.0, "claims_intimated_amt": 2076.813368601999, "total_claims_no": 31035.0, "total_claims_amt": 2077.313368601999, "claims_paid_no": 30830.0, "claims_paid_amt": 2008.9432215419972, "claims_repudiated_no": 205.0, "claims_repudiated_amt": 68.37014699199999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 6.800196672429594e-08, "claims_paid_ratio_no": 0.9933945545352022, "claims_paid_ratio_amt": 0.9670872252143576, "claims_repudiated_rejected_ratio_no": 0.0066054454647978, "claims_repudiated_rejected_ratio_amt": 0.0329127747529069, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 3.2735536078536014e-11, "category": "Individual Death Claims"}, {"life_insurer": "PNB Metlife", "year": "2021-22", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 8586.0, "claims_intimated_amt": 717.4268524780003, "total_claims_no": 8586.0, "total_claims_amt": 717.4268524780003, "claims_paid_no": 8357.0, "claims_paid_amt": 669.6905082580006, "claims_repudiated_no": 224.0, "claims_repudiated_amt": 43.20785862, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 3.0, "claims_unclaimed_amt": 2.0284856, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 2.4999999999997544, "claims_paid_ratio_no": 0.9733286745865364, "claims_paid_ratio_amt": 0.9334617263695694, "claims_repudiated_rejected_ratio_no": 0.0260889820638248, "claims_repudiated_rejected_ratio_amt": 0.060226151935573, "claims_pending_ratio_no": 0.0002329373398555, "claims_pending_ratio_amt": 0.0034846758124047, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica", "year": "2021-22", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.21, "claims_intimated_no": 1060.0, "claims_intimated_amt": 52.828706370524046, "total_claims_no": 1061.0, "total_claims_amt": 53.03870637052405, "claims_paid_no": 1043.0, "claims_paid_amt": 51.34, "claims_repudiated_no": 16.0, "claims_repudiated_amt": 1.5, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.198706370524043, "claims_paid_ratio_no": 0.9830348727615456, "claims_paid_ratio_amt": 0.9679723264994998, "claims_repudiated_rejected_ratio_no": 0.0150801131008482, "claims_repudiated_rejected_ratio_amt": 0.0282812327570948, "claims_pending_ratio_no": 0.001885014137606, "claims_pending_ratio_amt": 0.0037464407434053, "category": "Individual Death Claims"}, {"life_insurer": "Reliance", "year": "2021-22", "claims_pending_start_no": 4.0, "claims_pending_start_amt": 1.4819051239999992, "claims_intimated_no": 13726.0, "claims_intimated_amt": 359.2811494469995, "total_claims_no": 13730.0, "total_claims_amt": 360.7630545709995, "claims_paid_no": 13548.0, "claims_paid_amt": 344.1429030129995, "claims_repudiated_no": 174.0, "claims_repudiated_amt": 14.482292556999996, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 5.0, "claims_unclaimed_amt": 1.596379737999999, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.5414792629999783, "claims_paid_ratio_no": 0.9867443554260744, "claims_paid_ratio_amt": 0.9539305609390524, "claims_repudiated_rejected_ratio_no": 0.0126729788783685, "claims_repudiated_rejected_ratio_amt": 0.0401435024277127, "claims_pending_ratio_no": 0.0002184996358339, "claims_pending_ratio_amt": 0.0015009277034863, "category": "Individual Death Claims"}, {"life_insurer": "SBI Life", "year": "2021-22", "claims_pending_start_no": 912.0, "claims_pending_start_amt": 101.5405695, "claims_intimated_no": 54874.0, "claims_intimated_amt": 2808.60417088374, "total_claims_no": 55786.0, "total_claims_amt": 2910.14474038374, "claims_paid_no": 54140.0, "claims_paid_amt": 2751.5275383125127, "claims_repudiated_no": 1541.0, "claims_repudiated_amt": 127.575616245, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 69.0, "claims_unclaimed_amt": 10.643347468730015, "claims_pending_end_no": 7.0, "claims_pending_end_amt": 0.9076453143601172, "claims_paid_ratio_no": 0.9704943892732945, "claims_paid_ratio_amt": 0.9454950814404126, "claims_repudiated_rejected_ratio_no": 0.0276234180618793, "claims_repudiated_rejected_ratio_amt": 0.0438382374851147, "claims_pending_ratio_no": 0.0001254795109884, "claims_pending_ratio_amt": 0.0003118900932193, "category": "Individual Death Claims"}, {"life_insurer": "SUD", "year": "2021-22", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 1.018412, "claims_intimated_no": 2943.0, "claims_intimated_amt": 170.29835069, "total_claims_no": 2951.0, "total_claims_amt": 171.31676269000002, "claims_paid_no": 2875.0, "claims_paid_amt": 156.60075225500003, "claims_repudiated_no": 74.0, "claims_repudiated_amt": 14.316010435, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.3999999999999879, "claims_paid_ratio_no": 0.9742460182988816, "claims_paid_ratio_amt": 0.9141005806791436, "claims_repudiated_rejected_ratio_no": 0.0250762453405625, "claims_repudiated_rejected_ratio_amt": 0.0835645631531399, "claims_pending_ratio_no": 0.0006777363605557, "claims_pending_ratio_amt": 0.0023348561677166, "category": "Individual Death Claims"}, {"life_insurer": "Sahara", "year": "2021-22", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.0237, "claims_intimated_no": 1164.0, "claims_intimated_amt": 12.823381951000002, "total_claims_no": 1166.0, "total_claims_amt": 12.847081951000002, "claims_paid_no": 1132.0, "claims_paid_amt": 12.47292594, "claims_repudiated_no": 16.0, "claims_repudiated_amt": 0.313778519, "claims_rejected_no": 15.0, "claims_rejected_amt": 0.0005, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.0598774920000002, "claims_paid_ratio_no": 0.9708404802744426, "claims_paid_ratio_amt": 0.9708761871040392, "claims_repudiated_rejected_ratio_no": 0.0265866209262435, "claims_repudiated_rejected_ratio_amt": 0.0244630274951688, "claims_pending_ratio_no": 0.0025728987993138, "claims_pending_ratio_amt": 0.004660785400792, "category": "Individual Death Claims"}, {"life_insurer": "Shriram", "year": "2021-22", "claims_pending_start_no": 11.0, "claims_pending_start_amt": 0.98160654, "claims_intimated_no": 5854.0, "claims_intimated_amt": 202.180575944, "total_claims_no": 5865.0, "total_claims_amt": 203.162182484, "claims_paid_no": 5620.0, "claims_paid_amt": 167.39339271600002, "claims_repudiated_no": 163.0, "claims_repudiated_amt": 23.578231328, "claims_rejected_no": 78.0, "claims_rejected_amt": 12.12551044, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 4.0, "claims_pending_end_amt": 0.0650479999999742, "claims_paid_ratio_no": 0.9582267689684568, "claims_paid_ratio_amt": 0.8239397247525782, "claims_repudiated_rejected_ratio_no": 0.0410912190963341, "claims_repudiated_rejected_ratio_amt": 0.1757400975489709, "claims_pending_ratio_no": 0.0006820119352088, "claims_pending_ratio_amt": 0.0003201776984508, "category": "Individual Death Claims"}, {"life_insurer": "Tata AIA", "year": "2021-22", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 4.4, "claims_intimated_no": 8067.0, "claims_intimated_amt": 1599.5271973669992, "total_claims_no": 8069.0, "total_claims_amt": 1603.9271973669993, "claims_paid_no": 7950.0, "claims_paid_amt": 1518.17, "claims_repudiated_no": 117.0, "claims_repudiated_amt": 80.629797404, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 5.127399962999206, "claims_paid_ratio_no": 0.985252199776924, "claims_paid_ratio_amt": 0.9465329863426608, "claims_repudiated_rejected_ratio_no": 0.0144999380344528, "claims_repudiated_rejected_ratio_amt": 0.0502702351680061, "claims_pending_ratio_no": 0.0002478621886231, "claims_pending_ratio_amt": 0.0031967784893331, "category": "Individual Death Claims"}, {"life_insurer": "ABSL", "year": "2020-21", "claims_pending_start_no": 19.0, "claims_pending_start_amt": 3.802882696, "claims_intimated_no": 6455.0, "claims_intimated_amt": 468.8463574259635, "total_claims_no": 6474.0, "total_claims_amt": 472.64924012196354, "claims_paid_no": 6347.0, "claims_paid_amt": 440.2642878843836, "claims_repudiated_no": 116.0, "claims_repudiated_amt": 28.747044714, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 11.0, "claims_pending_end_amt": 3.6379075235799654, "claims_paid_ratio_no": 0.9803830707445166, "claims_paid_ratio_amt": 0.931482060080699, "claims_repudiated_rejected_ratio_no": 0.0179178251467408, "claims_repudiated_rejected_ratio_amt": 0.0608210958015759, "claims_pending_ratio_no": 0.0016991041087426, "claims_pending_ratio_amt": 0.007696844117725, "category": "Individual Death Claims"}, {"life_insurer": "Aditya Birla Life", "year": "2020-21", "claims_pending_start_no": 19.0, "claims_pending_start_amt": 3.802882696, "claims_intimated_no": 6455.0, "claims_intimated_amt": 468.8463574259635, "total_claims_no": 6474.0, "total_claims_amt": 472.64924012196354, "claims_paid_no": 6347.0, "claims_paid_amt": 440.2642878843836, "claims_repudiated_no": 116.0, "claims_repudiated_amt": 28.747044714, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 11.0, "claims_pending_end_amt": 3.6379075235799654, "claims_paid_ratio_no": 0.9803830707445166, "claims_paid_ratio_amt": 0.931482060080699, "claims_repudiated_rejected_ratio_no": 0.0179178251467408, "claims_repudiated_rejected_ratio_amt": 0.0608210958015759, "claims_pending_ratio_no": 0.0016991041087426, "claims_pending_ratio_amt": 0.007696844117725, "category": "Individual Death Claims"}, {"life_insurer": "Aegon", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 401.0, "claims_intimated_amt": 107.44, "total_claims_no": 401.0, "total_claims_amt": 107.44, "claims_paid_no": 398.0, "claims_paid_amt": 105.98, "claims_repudiated_no": 3.0, "claims_repudiated_amt": 1.46, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -6.217248937900877e-15, "claims_paid_ratio_no": 0.9925187032418952, "claims_paid_ratio_amt": 0.9864110201042444, "claims_repudiated_rejected_ratio_no": 0.0074812967581047, "claims_repudiated_rejected_ratio_amt": 0.0135889798957557, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -5.786717179729037e-17, "category": "Individual Death Claims"}, {"life_insurer": "Ageas", "year": "2020-21", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 1.4532903373999997, "claims_intimated_no": 1800.0, "claims_intimated_amt": 87.1273657, "total_claims_no": 1805.0, "total_claims_amt": 88.5806560374, "claims_paid_no": 1716.0, "claims_paid_amt": 73.90864701100001, "claims_repudiated_no": 38.0, "claims_repudiated_amt": 7.7110335, "claims_rejected_no": 1.0, "claims_rejected_amt": 0.0485005, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 50.0, "claims_pending_end_amt": 6.912475470099998, "claims_paid_ratio_no": 0.9506925207756232, "claims_paid_ratio_amt": 0.8343655411605299, "claims_repudiated_rejected_ratio_no": 0.0216066481994459, "claims_repudiated_rejected_ratio_amt": 0.0875985158286005, "claims_pending_ratio_no": 0.0277008310249307, "claims_pending_ratio_amt": 0.078035948019864, "category": "Individual Death Claims"}, {"life_insurer": "Ageas Federal", "year": "2020-21", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 1.4532903373999997, "claims_intimated_no": 1800.0, "claims_intimated_amt": 87.1273657, "total_claims_no": 1805.0, "total_claims_amt": 88.5806560374, "claims_paid_no": 1716.0, "claims_paid_amt": 73.90864701100001, "claims_repudiated_no": 38.0, "claims_repudiated_amt": 7.7110335, "claims_rejected_no": 1.0, "claims_rejected_amt": 0.0485005, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 50.0, "claims_pending_end_amt": 6.912475470099998, "claims_paid_ratio_no": 0.9506925207756232, "claims_paid_ratio_amt": 0.8343655411605299, "claims_repudiated_rejected_ratio_no": 0.0216066481994459, "claims_repudiated_rejected_ratio_amt": 0.0875985158286005, "claims_pending_ratio_no": 0.0277008310249307, "claims_pending_ratio_amt": 0.078035948019864, "category": "Individual Death Claims"}, {"life_insurer": "Aviva", "year": "2020-21", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 0.7783592, "claims_intimated_no": 1050.0, "claims_intimated_amt": 116.3712508, "total_claims_no": 1055.0, "total_claims_amt": 117.14961, "claims_paid_no": 1034.0, "claims_paid_amt": 111.5721176, "claims_repudiated_no": 21.0, "claims_repudiated_amt": 5.577492400000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 1.0658141036401504e-14, "claims_paid_ratio_no": 0.9800947867298578, "claims_paid_ratio_amt": 0.9523900045420552, "claims_repudiated_rejected_ratio_no": 0.0199052132701421, "claims_repudiated_rejected_ratio_amt": 0.0476099954579447, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 9.097888619860964e-17, "category": "Individual Death Claims"}, {"life_insurer": "Baj Alz", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.650000034999987, "claims_intimated_no": 14331.0, "claims_intimated_amt": 445.88634941785006, "total_claims_no": 14333.0, "total_claims_amt": 446.53634945285006, "claims_paid_no": 14115.0, "claims_paid_amt": 410.6768054422, "claims_repudiated_no": 213.0, "claims_repudiated_amt": 32.15954400299999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 3.700000007650047, "claims_paid_ratio_no": 0.9847903439614876, "claims_paid_ratio_amt": 0.919694009111264, "claims_repudiated_rejected_ratio_no": 0.0148608107165282, "claims_repudiated_rejected_ratio_amt": 0.072019991300609, "claims_pending_ratio_no": 0.0003488453219842, "claims_pending_ratio_amt": 0.0082859995881269, "category": "Individual Death Claims"}, {"life_insurer": "Bajaj Allianz", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.650000034999987, "claims_intimated_no": 14331.0, "claims_intimated_amt": 445.88634941785006, "total_claims_no": 14333.0, "total_claims_amt": 446.53634945285006, "claims_paid_no": 14115.0, "claims_paid_amt": 410.6768054422, "claims_repudiated_no": 213.0, "claims_repudiated_amt": 32.15954400299999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 3.700000007650047, "claims_paid_ratio_no": 0.9847903439614876, "claims_paid_ratio_amt": 0.919694009111264, "claims_repudiated_rejected_ratio_no": 0.0148608107165282, "claims_repudiated_rejected_ratio_amt": 0.072019991300609, "claims_pending_ratio_no": 0.0003488453219842, "claims_pending_ratio_amt": 0.0082859995881269, "category": "Individual Death Claims"}, {"life_insurer": "Bharti Axa", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 1.1533918, "claims_intimated_no": 1891.0, "claims_intimated_amt": 106.44493664749488, "total_claims_no": 1893.0, "total_claims_amt": 107.59832844749488, "claims_paid_no": 1875.0, "claims_paid_amt": 106.03520461049494, "claims_repudiated_no": 18.0, "claims_repudiated_amt": 1.563123837, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -6.483702463810914e-14, "claims_paid_ratio_no": 0.9904912836767036, "claims_paid_ratio_amt": 0.9854726011123612, "claims_repudiated_rejected_ratio_no": 0.0095087163232963, "claims_repudiated_rejected_ratio_amt": 0.0145273988876394, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -6.025839394870143e-16, "category": "Individual Death Claims"}, {"life_insurer": "Can HSBC", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 2.0, "claims_intimated_no": 1897.0, "claims_intimated_amt": 166.53792392081817, "total_claims_no": 1899.0, "total_claims_amt": 168.53792392081817, "claims_paid_no": 1844.0, "claims_paid_amt": 156.07572638381868, "claims_repudiated_no": 30.0, "claims_repudiated_amt": 6.5942232370000005, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 25.0, "claims_pending_end_amt": 5.867974299999497, "claims_paid_ratio_no": 0.9710373880989994, "claims_paid_ratio_amt": 0.9260570128842074, "claims_repudiated_rejected_ratio_no": 0.0157977883096366, "claims_repudiated_rejected_ratio_amt": 0.0391260499927486, "claims_pending_ratio_no": 0.0131648235913638, "claims_pending_ratio_amt": 0.0348169371230439, "category": "Individual Death Claims"}, {"life_insurer": "Canara HSBC OBC", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 2.0, "claims_intimated_no": 1897.0, "claims_intimated_amt": 166.53792392081817, "total_claims_no": 1899.0, "total_claims_amt": 168.53792392081817, "claims_paid_no": 1844.0, "claims_paid_amt": 156.07572638381868, "claims_repudiated_no": 30.0, "claims_repudiated_amt": 6.5942232370000005, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 25.0, "claims_pending_end_amt": 5.867974299999497, "claims_paid_ratio_no": 0.9710373880989994, "claims_paid_ratio_amt": 0.9260570128842074, "claims_repudiated_rejected_ratio_no": 0.0157977883096366, "claims_repudiated_rejected_ratio_amt": 0.0391260499927486, "claims_pending_ratio_no": 0.0131648235913638, "claims_pending_ratio_amt": 0.0348169371230439, "category": "Individual Death Claims"}, {"life_insurer": "Edelweiss Tokio", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 502.0, "claims_intimated_amt": 52.08913801200001, "total_claims_no": 502.0, "total_claims_amt": 52.08913801200001, "claims_paid_no": 487.0, "claims_paid_amt": 45.8282796948095, "claims_repudiated_no": 13.0, "claims_repudiated_amt": 3.2608583170000003, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 3.0000000001905036, "claims_paid_ratio_no": 0.9701195219123506, "claims_paid_ratio_amt": 0.8798049160316656, "claims_repudiated_rejected_ratio_no": 0.0258964143426294, "claims_repudiated_rejected_ratio_amt": 0.0626015027595346, "claims_pending_ratio_no": 0.0039840637450199, "claims_pending_ratio_amt": 0.0575935812087998, "category": "Individual Death Claims"}, {"life_insurer": "Edelws", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 502.0, "claims_intimated_amt": 52.08913801200001, "total_claims_no": 502.0, "total_claims_amt": 52.08913801200001, "claims_paid_no": 487.0, "claims_paid_amt": 45.8282796948095, "claims_repudiated_no": 13.0, "claims_repudiated_amt": 3.2608583170000003, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 3.0000000001905036, "claims_paid_ratio_no": 0.9701195219123506, "claims_paid_ratio_amt": 0.8798049160316656, "claims_repudiated_rejected_ratio_no": 0.0258964143426294, "claims_repudiated_rejected_ratio_amt": 0.0626015027595346, "claims_pending_ratio_no": 0.0039840637450199, "claims_pending_ratio_amt": 0.0575935812087998, "category": "Individual Death Claims"}, {"life_insurer": "Exide", "year": "2020-21", "claims_pending_start_no": 38.0, "claims_pending_start_amt": 9.048578000000006, "claims_intimated_no": 5014.0, "claims_intimated_amt": 173.65543904124996, "total_claims_no": 5052.0, "total_claims_amt": 182.70401704125, "claims_paid_no": 4978.0, "claims_paid_amt": 170.43014094124996, "claims_repudiated_no": 11.0, "claims_repudiated_amt": 3.4896586999999997, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 63.0, "claims_pending_end_amt": 8.784217400000024, "claims_paid_ratio_no": 0.9853523357086302, "claims_paid_ratio_amt": 0.9328209839128556, "claims_repudiated_rejected_ratio_no": 0.0021773555027711, "claims_repudiated_rejected_ratio_amt": 0.0191000655404972, "claims_pending_ratio_no": 0.0124703087885985, "claims_pending_ratio_amt": 0.048078950546647, "category": "Individual Death Claims"}, {"life_insurer": "Exide Life", "year": "2020-21", "claims_pending_start_no": 38.0, "claims_pending_start_amt": 9.048578000000006, "claims_intimated_no": 5014.0, "claims_intimated_amt": 173.65543904124996, "total_claims_no": 5052.0, "total_claims_amt": 182.70401704125, "claims_paid_no": 4978.0, "claims_paid_amt": 170.43014094124996, "claims_repudiated_no": 11.0, "claims_repudiated_amt": 3.4896586999999997, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 63.0, "claims_pending_end_amt": 8.784217400000024, "claims_paid_ratio_no": 0.9853523357086302, "claims_paid_ratio_amt": 0.9328209839128556, "claims_repudiated_rejected_ratio_no": 0.0021773555027711, "claims_repudiated_rejected_ratio_amt": 0.0191000655404972, "claims_pending_ratio_no": 0.0124703087885985, "claims_pending_ratio_amt": 0.048078950546647, "category": "Individual Death Claims"}, {"life_insurer": "Fut Genli", "year": "2020-21", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.31135, "claims_intimated_no": 1223.0, "claims_intimated_amt": 55.473135144000025, "total_claims_no": 1226.0, "total_claims_amt": 55.78448514400002, "claims_paid_no": 1163.0, "claims_paid_amt": 48.11054702900007, "claims_repudiated_no": 55.0, "claims_repudiated_amt": 4.959686694, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0029454209999999, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 2.7113059999999556, "claims_paid_ratio_no": 0.9486133768352364, "claims_paid_ratio_amt": 0.8624359784769774, "claims_repudiated_rejected_ratio_no": 0.0448613376835236, "claims_repudiated_rejected_ratio_amt": 0.0889079944216971, "claims_pending_ratio_no": 0.0065252854812398, "claims_pending_ratio_amt": 0.0486032270980199, "category": "Individual Death Claims"}, {"life_insurer": "Future Generali", "year": "2020-21", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.31135, "claims_intimated_no": 1223.0, "claims_intimated_amt": 55.473135144000025, "total_claims_no": 1226.0, "total_claims_amt": 55.78448514400002, "claims_paid_no": 1163.0, "claims_paid_amt": 48.11054702900007, "claims_repudiated_no": 55.0, "claims_repudiated_amt": 4.959686694, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0029454209999999, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 2.7113059999999556, "claims_paid_ratio_no": 0.9486133768352364, "claims_paid_ratio_amt": 0.8624359784769774, "claims_repudiated_rejected_ratio_no": 0.0448613376835236, "claims_repudiated_rejected_ratio_amt": 0.0889079944216971, "claims_pending_ratio_no": 0.0065252854812398, "claims_pending_ratio_amt": 0.0486032270980199, "category": "Individual Death Claims"}, {"life_insurer": "HDFC", "year": "2020-21", "claims_pending_start_no": 35.0, "claims_pending_start_amt": 17.578717205, "claims_intimated_no": 16941.0, "claims_intimated_amt": 1277.962531953428, "total_claims_no": 16976.0, "total_claims_amt": 1295.541249158428, "claims_paid_no": 16639.0, "claims_paid_amt": 1037.232953660431, "claims_repudiated_no": 84.0, "claims_repudiated_amt": 39.981818516, "claims_rejected_no": 58.0, "claims_rejected_amt": 47.954496996, "claims_unclaimed_no": 17.0, "claims_unclaimed_amt": 3.1334916360000005, "claims_pending_end_no": 178.0, "claims_pending_end_amt": 167.23848834999703, "claims_paid_ratio_no": 0.9801484448633364, "claims_paid_ratio_amt": 0.8006174672818857, "claims_repudiated_rejected_ratio_no": 0.0083647502356267, "claims_repudiated_rejected_ratio_amt": 0.0678761217129309, "claims_pending_ratio_no": 0.0104853911404335, "claims_pending_ratio_amt": 0.1290877372361811, "category": "Individual Death Claims"}, {"life_insurer": "HDFC Life", "year": "2020-21", "claims_pending_start_no": 35.0, "claims_pending_start_amt": 17.578717205, "claims_intimated_no": 16941.0, "claims_intimated_amt": 1277.962531953428, "total_claims_no": 16976.0, "total_claims_amt": 1295.541249158428, "claims_paid_no": 16639.0, "claims_paid_amt": 1037.232953660431, "claims_repudiated_no": 84.0, "claims_repudiated_amt": 39.981818516, "claims_rejected_no": 58.0, "claims_rejected_amt": 47.954496996, "claims_unclaimed_no": 17.0, "claims_unclaimed_amt": 3.1334916360000005, "claims_pending_end_no": 178.0, "claims_pending_end_amt": 167.23848834999703, "claims_paid_ratio_no": 0.9801484448633364, "claims_paid_ratio_amt": 0.8006174672818857, "claims_repudiated_rejected_ratio_no": 0.0083647502356267, "claims_repudiated_rejected_ratio_amt": 0.0678761217129309, "claims_pending_ratio_no": 0.0104853911404335, "claims_pending_ratio_amt": 0.1290877372361811, "category": "Individual Death Claims"}, {"life_insurer": "ICICI", "year": "2020-21", "claims_pending_start_no": 95.0, "claims_pending_start_amt": 43.70162686145701, "claims_intimated_no": 14734.0, "claims_intimated_amt": 1643.0487730524314, "total_claims_no": 14829.0, "total_claims_amt": 1686.7503999138885, "claims_paid_no": 14518.0, "claims_paid_amt": 1504.6436179844766, "claims_repudiated_no": 289.0, "claims_repudiated_amt": 174.13591671199998, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 6.0, "claims_unclaimed_amt": 0.1476528215914, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 7.823212395820526, "claims_paid_ratio_no": 0.9790275810911052, "claims_paid_ratio_amt": 0.8920369119588122, "claims_repudiated_rejected_ratio_no": 0.0194888394362398, "claims_repudiated_rejected_ratio_amt": 0.1032375132212151, "claims_pending_ratio_no": 0.0010789668892035, "claims_pending_ratio_amt": 0.0046380379670992, "category": "Individual Death Claims"}, {"life_insurer": "ICICI Prudential", "year": "2020-21", "claims_pending_start_no": 95.0, "claims_pending_start_amt": 43.70162686145701, "claims_intimated_no": 14734.0, "claims_intimated_amt": 1643.0487730524314, "total_claims_no": 14829.0, "total_claims_amt": 1686.7503999138885, "claims_paid_no": 14518.0, "claims_paid_amt": 1504.6436179844766, "claims_repudiated_no": 289.0, "claims_repudiated_amt": 174.13591671199998, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 6.0, "claims_unclaimed_amt": 0.1476528215914, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 7.823212395820526, "claims_paid_ratio_no": 0.9790275810911052, "claims_paid_ratio_amt": 0.8920369119588122, "claims_repudiated_rejected_ratio_no": 0.0194888394362398, "claims_repudiated_rejected_ratio_amt": 0.1032375132212151, "claims_pending_ratio_no": 0.0010789668892035, "claims_pending_ratio_amt": 0.0046380379670992, "category": "Individual Death Claims"}, {"life_insurer": "India First", "year": "2020-21", "claims_pending_start_no": 9.0, "claims_pending_start_amt": 2.531358599, "claims_intimated_no": 2972.0, "claims_intimated_amt": 117.736802332, "total_claims_no": 2981.0, "total_claims_amt": 120.268160931, "claims_paid_no": 2886.0, "claims_paid_amt": 109.64075612399998, "claims_repudiated_no": 80.0, "claims_repudiated_amt": 6.674796483000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 15.0, "claims_pending_end_amt": 3.9486069197, "claims_paid_ratio_no": 0.9681314994968132, "claims_paid_ratio_amt": 0.9116357585853736, "claims_repudiated_rejected_ratio_no": 0.0268366320026836, "claims_repudiated_rejected_ratio_amt": 0.0554992812006949, "claims_pending_ratio_no": 0.0050318685005031, "claims_pending_ratio_amt": 0.0328316895272505, "category": "Individual Death Claims"}, {"life_insurer": "Indiafirst", "year": "2020-21", "claims_pending_start_no": 9.0, "claims_pending_start_amt": 2.531358599, "claims_intimated_no": 2972.0, "claims_intimated_amt": 117.736802332, "total_claims_no": 2981.0, "total_claims_amt": 120.268160931, "claims_paid_no": 2886.0, "claims_paid_amt": 109.64075612399998, "claims_repudiated_no": 80.0, "claims_repudiated_amt": 6.674796483000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 15.0, "claims_pending_end_amt": 3.9486069197, "claims_paid_ratio_no": 0.9681314994968132, "claims_paid_ratio_amt": 0.9116357585853736, "claims_repudiated_rejected_ratio_no": 0.0268366320026836, "claims_repudiated_rejected_ratio_amt": 0.0554992812006949, "claims_pending_ratio_no": 0.0050318685005031, "claims_pending_ratio_amt": 0.0328316895272505, "category": "Individual Death Claims"}, {"life_insurer": "Kotak", "year": "2020-21", "claims_pending_start_no": 9.0, "claims_pending_start_amt": 12.142200569, "claims_intimated_no": 4393.0, "claims_intimated_amt": 301.99957921299983, "total_claims_no": 4402.0, "total_claims_amt": 314.14177978199984, "claims_paid_no": 4336.0, "claims_paid_amt": 299.91504010799883, "claims_repudiated_no": 50.0, "claims_repudiated_amt": 6.949741988000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 7.2769976863, "claims_paid_ratio_no": 0.9850068150840527, "claims_paid_ratio_amt": 0.9547123605020836, "claims_repudiated_rejected_ratio_no": 0.0113584734211721, "claims_repudiated_rejected_ratio_amt": 0.0221229471381451, "claims_pending_ratio_no": 0.0036347114947751, "claims_pending_ratio_amt": 0.0231646923607229, "category": "Individual Death Claims"}, {"life_insurer": "Kotak Mahindra", "year": "2020-21", "claims_pending_start_no": 9.0, "claims_pending_start_amt": 12.142200569, "claims_intimated_no": 4393.0, "claims_intimated_amt": 301.99957921299983, "total_claims_no": 4402.0, "total_claims_amt": 314.14177978199984, "claims_paid_no": 4336.0, "claims_paid_amt": 299.91504010799883, "claims_repudiated_no": 50.0, "claims_repudiated_amt": 6.949741988000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 7.2769976863, "claims_paid_ratio_no": 0.9850068150840527, "claims_paid_ratio_amt": 0.9547123605020836, "claims_repudiated_rejected_ratio_no": 0.0113584734211721, "claims_repudiated_rejected_ratio_amt": 0.0221229471381451, "claims_pending_ratio_no": 0.0036347114947751, "claims_pending_ratio_amt": 0.0231646923607229, "category": "Individual Death Claims"}, {"life_insurer": "LIC", "year": "2020-21", "claims_pending_start_no": 5875.0, "claims_pending_start_amt": 349.68999999999977, "claims_intimated_no": 941101.0, "claims_intimated_amt": 18755.65, "total_claims_no": 946976.0, "total_claims_amt": 19105.34, "claims_paid_no": 933889.0, "claims_paid_amt": 18295.58, "claims_repudiated_no": 6531.0, "claims_repudiated_amt": 276.93, "claims_rejected_no": 2934.0, "claims_rejected_amt": 3.92, "claims_unclaimed_no": 1897.0, "claims_unclaimed_amt": 236.49, "claims_pending_end_no": 1725.0, "claims_pending_end_amt": 292.41999999999837, "claims_paid_ratio_no": 0.9861802199844558, "claims_paid_ratio_amt": 0.957616038238524, "claims_repudiated_rejected_ratio_no": 0.0099949734734565, "claims_repudiated_rejected_ratio_amt": 0.0147000786167636, "claims_pending_ratio_no": 0.0018215878755111, "claims_pending_ratio_amt": 0.0153056684675592, "category": "Individual Death Claims"}, {"life_insurer": "Max", "year": "2020-21", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.01500105, "claims_intimated_no": 20051.0, "claims_intimated_amt": 928.0720800700008, "total_claims_no": 20052.0, "total_claims_amt": 928.0870811200008, "claims_paid_no": 19922.0, "claims_paid_amt": 885.5722737720009, "claims_repudiated_no": 129.0, "claims_repudiated_amt": 42.014807348, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.499999999999865, "claims_paid_ratio_no": 0.9935168561739476, "claims_paid_ratio_amt": 0.954190928617718, "claims_repudiated_rejected_ratio_no": 0.0064332734889287, "claims_repudiated_rejected_ratio_amt": 0.0452703288330413, "claims_pending_ratio_no": 4.987033712347896e-05, "claims_pending_ratio_amt": 0.0005387425492406, "category": "Individual Death Claims"}, {"life_insurer": "Max Life", "year": "2020-21", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.01500105, "claims_intimated_no": 20051.0, "claims_intimated_amt": 928.0720800700008, "total_claims_no": 20052.0, "total_claims_amt": 928.0870811200008, "claims_paid_no": 19922.0, "claims_paid_amt": 885.5722737720009, "claims_repudiated_no": 129.0, "claims_repudiated_amt": 42.014807348, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.499999999999865, "claims_paid_ratio_no": 0.9935168561739476, "claims_paid_ratio_amt": 0.954190928617718, "claims_repudiated_rejected_ratio_no": 0.0064332734889287, "claims_repudiated_rejected_ratio_amt": 0.0452703288330413, "claims_pending_ratio_no": 4.987033712347896e-05, "claims_pending_ratio_amt": 0.0005387425492406, "category": "Individual Death Claims"}, {"life_insurer": "PNB Met Life", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 5315.0, "claims_intimated_amt": 353.1580018290001, "total_claims_no": 5315.0, "total_claims_amt": 353.1580018290001, "claims_paid_no": 5218.0, "claims_paid_amt": 331.7032233559996, "claims_repudiated_no": 97.0, "claims_repudiated_amt": 21.454778473, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 4.902744876744691e-13, "claims_paid_ratio_no": 0.981749764816557, "claims_paid_ratio_amt": 0.9392487828057512, "claims_repudiated_rejected_ratio_no": 0.018250235183443, "claims_repudiated_rejected_ratio_amt": 0.0607512171942473, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 1.3882581879366877e-15, "category": "Individual Death Claims"}, {"life_insurer": "PNB Metlife", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 5315.0, "claims_intimated_amt": 353.1580018290001, "total_claims_no": 5315.0, "total_claims_amt": 353.1580018290001, "claims_paid_no": 5218.0, "claims_paid_amt": 331.7032233559996, "claims_repudiated_no": 97.0, "claims_repudiated_amt": 21.454778473, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 4.902744876744691e-13, "claims_paid_ratio_no": 0.981749764816557, "claims_paid_ratio_amt": 0.9392487828057512, "claims_repudiated_rejected_ratio_no": 0.018250235183443, "claims_repudiated_rejected_ratio_amt": 0.0607512171942473, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 1.3882581879366877e-15, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.221507992300001, "claims_intimated_no": 645.0, "claims_intimated_amt": 29.286068448746875, "total_claims_no": 647.0, "total_claims_amt": 29.507576441046876, "claims_paid_no": 638.0, "claims_paid_amt": 28.625236416000003, "claims_repudiated_no": 8.0, "claims_repudiated_amt": 0.673790559, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.2085494660468723, "claims_paid_ratio_no": 0.9860896445131376, "claims_paid_ratio_amt": 0.9700978483675304, "claims_repudiated_rejected_ratio_no": 0.0123647604327666, "claims_repudiated_rejected_ratio_amt": 0.0228344933832897, "claims_pending_ratio_no": 0.0015455950540958, "claims_pending_ratio_amt": 0.0070676582491799, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica Life", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.221507992300001, "claims_intimated_no": 645.0, "claims_intimated_amt": 29.286068448746875, "total_claims_no": 647.0, "total_claims_amt": 29.507576441046876, "claims_paid_no": 638.0, "claims_paid_amt": 28.625236416000003, "claims_repudiated_no": 8.0, "claims_repudiated_amt": 0.673790559, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.2085494660468723, "claims_paid_ratio_no": 0.9860896445131376, "claims_paid_ratio_amt": 0.9700978483675304, "claims_repudiated_rejected_ratio_no": 0.0123647604327666, "claims_repudiated_rejected_ratio_amt": 0.0228344933832897, "claims_pending_ratio_no": 0.0015455950540958, "claims_pending_ratio_amt": 0.0070676582491799, "category": "Individual Death Claims"}, {"life_insurer": "Reliance", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.5719593880999979, "claims_intimated_no": 9414.0, "claims_intimated_amt": 215.421583281, "total_claims_no": 9416.0, "total_claims_amt": 215.9935426691, "claims_paid_no": 9274.0, "claims_paid_amt": 205.261737213, "claims_repudiated_no": 138.0, "claims_repudiated_amt": 9.248403224, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 4.0, "claims_pending_end_amt": 1.4834022320999782, "claims_paid_ratio_no": 0.9849192863211554, "claims_paid_ratio_amt": 0.9503142301224208, "claims_repudiated_rejected_ratio_no": 0.0146559048428207, "claims_repudiated_rejected_ratio_amt": 0.0428179616377164, "claims_pending_ratio_no": 0.0004248088360237, "claims_pending_ratio_amt": 0.0068678082398626, "category": "Individual Death Claims"}, {"life_insurer": "Reliance Nippon", "year": "2020-21", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.5719593880999979, "claims_intimated_no": 9414.0, "claims_intimated_amt": 215.421583281, "total_claims_no": 9416.0, "total_claims_amt": 215.9935426691, "claims_paid_no": 9274.0, "claims_paid_amt": 205.261737213, "claims_repudiated_no": 138.0, "claims_repudiated_amt": 9.248403224, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 4.0, "claims_pending_end_amt": 1.4834022320999782, "claims_paid_ratio_no": 0.9849192863211554, "claims_paid_ratio_amt": 0.9503142301224208, "claims_repudiated_rejected_ratio_no": 0.0146559048428207, "claims_repudiated_rejected_ratio_amt": 0.0428179616377164, "claims_pending_ratio_no": 0.0004248088360237, "claims_pending_ratio_amt": 0.0068678082398626, "category": "Individual Death Claims"}, {"life_insurer": "SBI Life", "year": "2020-21", "claims_pending_start_no": 36.0, "claims_pending_start_amt": 7.776073142000121, "claims_intimated_no": 34183.0, "claims_intimated_amt": 1614.551156835577, "total_claims_no": 34219.0, "total_claims_amt": 1622.3272299775774, "claims_paid_no": 31855.0, "claims_paid_amt": 1398.7752488049996, "claims_repudiated_no": 1302.0, "claims_repudiated_amt": 103.960217938, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 150.0, "claims_unclaimed_amt": 18.051193688577985, "claims_pending_end_no": 912.0, "claims_pending_end_amt": 101.54056954599984, "claims_paid_ratio_no": 0.9309155732195564, "claims_paid_ratio_amt": 0.862202903926067, "claims_repudiated_rejected_ratio_no": 0.0380490370846605, "claims_repudiated_rejected_ratio_amt": 0.0640809178425963, "claims_pending_ratio_no": 0.0266518600777345, "claims_pending_ratio_amt": 0.0625894503092346, "category": "Individual Death Claims"}, {"life_insurer": "SUD", "year": "2020-21", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.721065, "claims_intimated_no": 1632.0, "claims_intimated_amt": 77.40495871700011, "total_claims_no": 1635.0, "total_claims_amt": 78.12602371700011, "claims_paid_no": 1569.0, "claims_paid_amt": 72.494127605, "claims_repudiated_no": 58.0, "claims_repudiated_amt": 4.613484112, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 1.0184120000001062, "claims_paid_ratio_no": 0.9596330275229358, "claims_paid_ratio_amt": 0.927912674368264, "claims_repudiated_rejected_ratio_no": 0.0354740061162079, "claims_repudiated_rejected_ratio_amt": 0.0590518228434568, "claims_pending_ratio_no": 0.0048929663608562, "claims_pending_ratio_amt": 0.013035502788279, "category": "Individual Death Claims"}, {"life_insurer": "Sahara", "year": "2020-21", "claims_pending_start_no": 46.0, "claims_pending_start_amt": 0.579634133, "claims_intimated_no": 839.0, "claims_intimated_amt": 8.677096441, "total_claims_no": 885.0, "total_claims_amt": 9.256730574, "claims_paid_no": 860.0, "claims_paid_amt": 9.022812241, "claims_repudiated_no": 16.0, "claims_repudiated_amt": 0.210218333, "claims_rejected_no": 7.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.0237, "claims_paid_ratio_no": 0.9717514124293786, "claims_paid_ratio_amt": 0.9747299188271696, "claims_repudiated_rejected_ratio_no": 0.0259887005649717, "claims_repudiated_rejected_ratio_amt": 0.0227097819602154, "claims_pending_ratio_no": 0.0022598870056497, "claims_pending_ratio_amt": 0.0025602992126148, "category": "Individual Death Claims"}, {"life_insurer": "Sahara Life", "year": "2020-21", "claims_pending_start_no": 46.0, "claims_pending_start_amt": 0.579634133, "claims_intimated_no": 839.0, "claims_intimated_amt": 8.677096441, "total_claims_no": 885.0, "total_claims_amt": 9.256730574, "claims_paid_no": 860.0, "claims_paid_amt": 9.022812241, "claims_repudiated_no": 16.0, "claims_repudiated_amt": 0.210218333, "claims_rejected_no": 7.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.0237, "claims_paid_ratio_no": 0.0, "claims_paid_ratio_amt": 0.0, "claims_repudiated_rejected_ratio_no": 0.0, "claims_repudiated_rejected_ratio_amt": 0.0, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 0.0, "category": "Individual Death Claims"}, {"life_insurer": "Shriram", "year": "2020-21", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 0.1194441, "claims_intimated_no": 3681.0, "claims_intimated_amt": 123.545609319, "total_claims_no": 3686.0, "total_claims_amt": 123.665053419, "claims_paid_no": 3506.0, "claims_paid_amt": 95.810657865, "claims_repudiated_no": 137.0, "claims_repudiated_amt": 18.721729116, "claims_rejected_no": 32.0, "claims_rejected_amt": 8.151059898, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 11.0, "claims_pending_end_amt": 0.9816065399999944, "claims_paid_ratio_no": 0.9511665762344004, "claims_paid_ratio_amt": 0.774759361809159, "claims_repudiated_rejected_ratio_no": 0.045849158979924, "claims_repudiated_rejected_ratio_amt": 0.2173030154521507, "claims_pending_ratio_no": 0.0029842647856755, "claims_pending_ratio_amt": 0.0079376227386902, "category": "Individual Death Claims"}, {"life_insurer": "Star Union", "year": "2020-21", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.721065, "claims_intimated_no": 1632.0, "claims_intimated_amt": 77.40495871700011, "total_claims_no": 1635.0, "total_claims_amt": 78.12602371700011, "claims_paid_no": 1569.0, "claims_paid_amt": 72.494127605, "claims_repudiated_no": 58.0, "claims_repudiated_amt": 4.613484112, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 1.0184120000001062, "claims_paid_ratio_no": 0.9596330275229358, "claims_paid_ratio_amt": 0.927912674368264, "claims_repudiated_rejected_ratio_no": 0.0354740061162079, "claims_repudiated_rejected_ratio_amt": 0.0590518228434568, "claims_pending_ratio_no": 0.0048929663608562, "claims_pending_ratio_amt": 0.013035502788279, "category": "Individual Death Claims"}, {"life_insurer": "Tata AIA", "year": "2020-21", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 4648.0, "claims_intimated_amt": 546.3299999999999, "total_claims_no": 4648.0, "total_claims_amt": 546.3299999999999, "claims_paid_no": 4556.0, "claims_paid_amt": 478.4, "claims_repudiated_no": 90.0, "claims_repudiated_amt": 63.53, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 4.399999999999949, "claims_paid_ratio_no": 0.9802065404475044, "claims_paid_ratio_amt": 0.8756612303918878, "claims_repudiated_rejected_ratio_no": 0.0193631669535284, "claims_repudiated_rejected_ratio_amt": 0.116285029194809, "claims_pending_ratio_no": 0.0004302925989672, "claims_pending_ratio_amt": 0.0080537404133032, "category": "Individual Death Claims"}, {"life_insurer": "Aditya Birla Life", "year": "2019-20", "claims_pending_start_no": 24.0, "claims_pending_start_amt": 9.79449251778005, "claims_intimated_no": 5138.0, "claims_intimated_amt": 361.26, "total_claims_no": 5162.0, "total_claims_amt": 371.0531127657002, "claims_paid_no": 5035.0, "claims_paid_amt": 342.8938049259999, "claims_repudiated_no": 108.0, "claims_repudiated_amt": 24.356425143399996, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 19.0, "claims_pending_end_amt": 3.8028826963002658, "claims_paid_ratio_no": 0.975397132894227, "claims_paid_ratio_amt": 0.9241097652306144, "claims_repudiated_rejected_ratio_no": 0.0209221232080588, "claims_repudiated_rejected_ratio_amt": 0.0656413443397785, "claims_pending_ratio_no": 0.003680743897714, "claims_pending_ratio_amt": 0.0102488904296069, "category": "Individual Death Claims"}, {"life_insurer": "Aegon", "year": "2019-20", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 351.0, "claims_intimated_amt": 69.0, "total_claims_no": 351.0, "total_claims_amt": 68.999316934, "claims_paid_no": 344.0, "claims_paid_amt": 64.601459922, "claims_repudiated_no": 7.0, "claims_repudiated_amt": 4.397857011999999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 3.552713678800501e-15, "claims_paid_ratio_no": 0.98005698005698, "claims_paid_ratio_amt": 0.9362623108833572, "claims_repudiated_rejected_ratio_no": 0.0199430199430199, "claims_repudiated_rejected_ratio_amt": 0.0637376891166427, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 5.148911375744172e-17, "category": "Individual Death Claims"}, {"life_insurer": "Ageas Federal", "year": "2019-20", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 1.53, "claims_intimated_no": 1408.0, "claims_intimated_amt": 69.35, "total_claims_no": 1416.0, "total_claims_amt": 70.87623765699999, "claims_paid_no": 1366.0, "claims_paid_amt": 63.2738496568, "claims_repudiated_no": 45.0, "claims_repudiated_amt": 6.3473880000000005, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 1.2550000001999937, "claims_paid_ratio_no": 0.9646892655367232, "claims_paid_ratio_amt": 0.8927371393923142, "claims_repudiated_rejected_ratio_no": 0.0317796610169491, "claims_repudiated_rejected_ratio_amt": 0.0895559387719998, "claims_pending_ratio_no": 0.0035310734463276, "claims_pending_ratio_amt": 0.0177069218356858, "category": "Individual Death Claims"}, {"life_insurer": "Aviva", "year": "2019-20", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.3, "claims_intimated_no": 808.0, "claims_intimated_amt": 83.03, "total_claims_no": 810.0, "total_claims_amt": 83.3319575, "claims_paid_no": 790.0, "claims_paid_amt": 80.7791613, "claims_repudiated_no": 11.0, "claims_repudiated_amt": 0.968207, "claims_rejected_no": 4.0, "claims_rejected_amt": 0.80623, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 0.778359200000003, "claims_paid_ratio_no": 0.9753086419753086, "claims_paid_ratio_amt": 0.9693659398316666, "claims_repudiated_rejected_ratio_no": 0.0185185185185185, "claims_repudiated_rejected_ratio_amt": 0.0212935955572626, "claims_pending_ratio_no": 0.0061728395061728, "claims_pending_ratio_amt": 0.0093404646110707, "category": "Individual Death Claims"}, {"life_insurer": "Bajaj Allianz", "year": "2019-20", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.33, "claims_intimated_no": 12124.0, "claims_intimated_amt": 331.82, "total_claims_no": 12127.0, "total_claims_amt": 332.1501742164499, "claims_paid_no": 11887.0, "claims_paid_amt": 310.7144675549998, "claims_repudiated_no": 237.0, "claims_repudiated_amt": 20.780706627, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 1.0, "claims_unclaimed_amt": 0.005, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.6500000344500688, "claims_paid_ratio_no": 0.9802094499876308, "claims_paid_ratio_amt": 0.9354638102719128, "claims_repudiated_rejected_ratio_no": 0.0195431681372144, "claims_repudiated_rejected_ratio_amt": 0.0625641900565675, "claims_pending_ratio_no": 0.000164921250103, "claims_pending_ratio_amt": 0.0019569462397044, "category": "Individual Death Claims"}, {"life_insurer": "Bharti Axa", "year": "2019-20", "claims_pending_start_no": 7.0, "claims_pending_start_amt": 1.02, "claims_intimated_no": 1313.0, "claims_intimated_amt": 63.27, "total_claims_no": 1320.0, "total_claims_amt": 64.28988819399996, "claims_paid_no": 1285.0, "claims_paid_amt": 61.558879945000015, "claims_repudiated_no": 33.0, "claims_repudiated_amt": 1.577616448, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 1.1533918009999418, "claims_paid_ratio_no": 0.9734848484848484, "claims_paid_ratio_amt": 0.9575204075521347, "claims_repudiated_rejected_ratio_no": 0.025, "claims_repudiated_rejected_ratio_amt": 0.0245391070402769, "claims_pending_ratio_no": 0.0015151515151515, "claims_pending_ratio_amt": 0.0179404854075883, "category": "Individual Death Claims"}, {"life_insurer": "Canara HSBC OBC", "year": "2019-20", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.75, "claims_intimated_no": 1275.0, "claims_intimated_amt": 114.52, "total_claims_no": 1276.0, "total_claims_amt": 115.2718824223091, "claims_paid_no": 1252.0, "claims_paid_amt": 106.52974869830908, "claims_repudiated_no": 22.0, "claims_repudiated_amt": 3.705251902000001, "claims_rejected_no": 0.0, "claims_rejected_amt": 3.036881822, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 2.000000000000012, "claims_paid_ratio_no": 0.9811912225705328, "claims_paid_ratio_amt": 0.9241607446647536, "claims_repudiated_rejected_ratio_no": 0.0172413793103448, "claims_repudiated_rejected_ratio_amt": 0.0584889704438032, "claims_pending_ratio_no": 0.0015673981191222, "claims_pending_ratio_amt": 0.0173502848914432, "category": "Individual Death Claims"}, {"life_insurer": "Edelweiss Tokio", "year": "2019-20", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 326.0, "claims_intimated_amt": 32.86, "total_claims_no": 326.0, "total_claims_amt": 32.856029845833994, "claims_paid_no": 272.0, "claims_paid_amt": 21.798861520121, "claims_repudiated_no": 54.0, "claims_repudiated_amt": 11.057168325713, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -7.105427357601002e-15, "claims_paid_ratio_no": 0.8343558282208589, "claims_paid_ratio_amt": 0.6634660859027983, "claims_repudiated_rejected_ratio_no": 0.1656441717791411, "claims_repudiated_rejected_ratio_amt": 0.3365339140972019, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -2.1625946259912894e-16, "category": "Individual Death Claims"}, {"life_insurer": "Exide Life", "year": "2019-20", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 3468.0, "claims_intimated_amt": 101.16, "total_claims_no": 3468.0, "total_claims_amt": 101.15787989000002, "claims_paid_no": 3404.0, "claims_paid_amt": 88.95413608999999, "claims_repudiated_no": 26.0, "claims_repudiated_amt": 3.1551658, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 38.0, "claims_pending_end_amt": 9.048578000000026, "claims_paid_ratio_no": 0.9815455594002308, "claims_paid_ratio_amt": 0.8793594348431335, "claims_repudiated_rejected_ratio_no": 0.0074971164936562, "claims_repudiated_rejected_ratio_amt": 0.0311905093644801, "claims_pending_ratio_no": 0.010957324106113, "claims_pending_ratio_amt": 0.0894500557923864, "category": "Individual Death Claims"}, {"life_insurer": "Future Generali", "year": "2019-20", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 0.91, "claims_intimated_no": 1135.0, "claims_intimated_amt": 48.92, "total_claims_no": 1143.0, "total_claims_amt": 49.827602654, "claims_paid_no": 1089.0, "claims_paid_amt": 44.89685703600008, "claims_repudiated_no": 51.0, "claims_repudiated_amt": 4.6193956179999995, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.3113499999999183, "claims_paid_ratio_no": 0.952755905511811, "claims_paid_ratio_amt": 0.9010438922330112, "claims_repudiated_rejected_ratio_no": 0.0446194225721784, "claims_repudiated_rejected_ratio_amt": 0.0927075631167089, "claims_pending_ratio_no": 0.0026246719160104, "claims_pending_ratio_amt": 0.0062485446502797, "category": "Individual Death Claims"}, {"life_insurer": "HDFC Life", "year": "2019-20", "claims_pending_start_no": 34.0, "claims_pending_start_amt": 10.19, "claims_intimated_no": 12592.0, "claims_intimated_amt": 692.26, "total_claims_no": 12626.0, "total_claims_amt": 702.4512081260006, "claims_paid_no": 12509.0, "claims_paid_amt": 650.3288564740009, "claims_repudiated_no": 54.0, "claims_repudiated_amt": 25.464491354, "claims_rejected_no": 15.0, "claims_rejected_amt": 7.1578743, "claims_unclaimed_no": 13.0, "claims_unclaimed_amt": 1.921268793, "claims_pending_end_no": 35.0, "claims_pending_end_amt": 17.57871720499968, "claims_paid_ratio_no": 0.9907334072548708, "claims_paid_ratio_amt": 0.925799328054326, "claims_repudiated_rejected_ratio_no": 0.0054649136702043, "claims_repudiated_rejected_ratio_amt": 0.0464407567054086, "claims_pending_ratio_no": 0.0027720576587993, "claims_pending_ratio_amt": 0.0250248230790237, "category": "Individual Death Claims"}, {"life_insurer": "ICICI Prudential", "year": "2019-20", "claims_pending_start_no": 21.0, "claims_pending_start_amt": 15.37, "claims_intimated_no": 11439.0, "claims_intimated_amt": 1101.64, "total_claims_no": 11460.0, "total_claims_amt": 1117.0115655146003, "claims_paid_no": 11212.0, "claims_paid_amt": 1023.6359879076292, "claims_repudiated_no": 153.0, "claims_repudiated_amt": 49.492066611000006, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.1818841364453, "claims_pending_end_no": 95.0, "claims_pending_end_amt": 43.701626859526016, "claims_paid_ratio_no": 0.9783595113438044, "claims_paid_ratio_amt": 0.9164058990168524, "claims_repudiated_rejected_ratio_no": 0.0133507853403141, "claims_repudiated_rejected_ratio_amt": 0.0443075686402578, "claims_pending_ratio_no": 0.0082897033158813, "claims_pending_ratio_amt": 0.0391237013194155, "category": "Individual Death Claims"}, {"life_insurer": "India First", "year": "2019-20", "claims_pending_start_no": 9.0, "claims_pending_start_amt": 1.55, "claims_intimated_no": 2232.0, "claims_intimated_amt": 77.41, "total_claims_no": 2241.0, "total_claims_amt": 78.95223491299997, "claims_paid_no": 2166.0, "claims_paid_amt": 70.170688354, "claims_repudiated_no": 66.0, "claims_repudiated_amt": 6.250187959, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 9.0, "claims_pending_end_amt": 2.5313585999999635, "claims_paid_ratio_no": 0.9665327978580992, "claims_paid_ratio_amt": 0.8887739331422773, "claims_repudiated_rejected_ratio_no": 0.0294511378848728, "claims_repudiated_rejected_ratio_amt": 0.0791641676247326, "claims_pending_ratio_no": 0.0040160642570281, "claims_pending_ratio_amt": 0.03206189923299, "category": "Individual Death Claims"}, {"life_insurer": "Kotak Mahindra", "year": "2019-20", "claims_pending_start_no": 12.0, "claims_pending_start_amt": 4.08, "claims_intimated_no": 3334.0, "claims_intimated_amt": 188.79, "total_claims_no": 3346.0, "total_claims_amt": 192.868328555, "claims_paid_no": 3225.0, "claims_paid_amt": 170.14214714199932, "claims_repudiated_no": 112.0, "claims_repudiated_amt": 10.583980844, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 9.0, "claims_pending_end_amt": 12.14220056900069, "claims_paid_ratio_no": 0.9638374178123132, "claims_paid_ratio_amt": 0.8821673751036843, "claims_repudiated_rejected_ratio_no": 0.0334728033472803, "claims_repudiated_rejected_ratio_amt": 0.0548767178276332, "claims_pending_ratio_no": 0.0026897788404064, "claims_pending_ratio_amt": 0.0629559070686824, "category": "Individual Death Claims"}, {"life_insurer": "LIC", "year": "2019-20", "claims_pending_start_no": 791.0, "claims_pending_start_amt": 135.92, "claims_intimated_no": 758125.0, "claims_intimated_amt": 13558.42, "total_claims_no": 758916.0, "total_claims_amt": 13694.339999999998, "claims_paid_no": 733809.0, "claims_paid_amt": 12797.85, "claims_repudiated_no": 6124.0, "claims_repudiated_amt": 205.02, "claims_rejected_no": 2172.0, "claims_rejected_amt": 2.08, "claims_unclaimed_no": 10936.0, "claims_unclaimed_amt": 339.7, "claims_pending_end_no": 5875.0, "claims_pending_end_amt": 349.68999999999795, "claims_paid_ratio_no": 0.9669172872887118, "claims_paid_ratio_amt": 0.9345357278992636, "claims_repudiated_rejected_ratio_no": 0.0109313810751123, "claims_repudiated_rejected_ratio_amt": 0.0151230362324872, "claims_pending_ratio_no": 0.0077413047030237, "claims_pending_ratio_amt": 0.0255353671662889, "category": "Individual Death Claims"}, {"life_insurer": "Max Life", "year": "2019-20", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 1.6, "claims_intimated_no": 15460.0, "claims_intimated_amt": 593.84, "total_claims_no": 15463.0, "total_claims_amt": 595.4315627499998, "claims_paid_no": 15342.0, "claims_paid_amt": 562.5368311959999, "claims_repudiated_no": 120.0, "claims_repudiated_amt": 32.879730504, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.0150010499999169, "claims_paid_ratio_no": 0.9921748690422298, "claims_paid_ratio_amt": 0.9447548070813117, "claims_repudiated_rejected_ratio_no": 0.0077604604539869, "claims_repudiated_rejected_ratio_amt": 0.055219999343241, "claims_pending_ratio_no": 6.467050378322448e-05, "claims_pending_ratio_amt": 2.5193575447419327e-05, "category": "Individual Death Claims"}, {"life_insurer": "PNB Met Life", "year": "2019-20", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 4364.0, "claims_intimated_amt": 269.56, "total_claims_no": 4364.0, "total_claims_amt": 269.55520706100003, "claims_paid_no": 4241.0, "claims_paid_amt": 235.110052133, "claims_repudiated_no": 123.0, "claims_repudiated_amt": 34.445154928, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 4.973799150320701e-14, "claims_paid_ratio_no": 0.9718148487626032, "claims_paid_ratio_amt": 0.8722148412432442, "claims_repudiated_rejected_ratio_no": 0.0281851512373968, "claims_repudiated_rejected_ratio_amt": 0.1277851587567555, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 1.8451875608528443e-16, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica Life", "year": "2019-20", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.3, "claims_intimated_no": 569.0, "claims_intimated_amt": 23.43, "total_claims_no": 569.0, "total_claims_amt": 23.4331677953, "claims_paid_no": 560.0, "claims_paid_amt": 22.444056904, "claims_repudiated_no": 7.0, "claims_repudiated_amt": 0.767602899, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.221507992300001, "claims_paid_ratio_no": 0.984182776801406, "claims_paid_ratio_amt": 0.957790133201778, "claims_repudiated_rejected_ratio_no": 0.0123022847100175, "claims_repudiated_rejected_ratio_amt": 0.0327571118725978, "claims_pending_ratio_no": 0.0035149384885764, "claims_pending_ratio_amt": 0.0094527549256242, "category": "Individual Death Claims"}, {"life_insurer": "Reliance Nippon", "year": "2019-20", "claims_pending_start_no": 4.0, "claims_pending_start_amt": 0.91, "claims_intimated_no": 8013.0, "claims_intimated_amt": 166.13, "total_claims_no": 8017.0, "total_claims_amt": 167.03142235119992, "claims_paid_no": 7866.0, "claims_paid_amt": 157.031953927, "claims_repudiated_no": 149.0, "claims_repudiated_amt": 9.427509072, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.5719593521999329, "claims_paid_ratio_no": 0.981165024323313, "claims_paid_ratio_amt": 0.940134207782922, "claims_repudiated_rejected_ratio_no": 0.0185855058001746, "claims_repudiated_rejected_ratio_amt": 0.0564415302180552, "claims_pending_ratio_no": 0.0002494698765124, "claims_pending_ratio_amt": 0.0034242619990227, "category": "Individual Death Claims"}, {"life_insurer": "SBI Life", "year": "2019-20", "claims_pending_start_no": 28.0, "claims_pending_start_amt": 4.63, "claims_intimated_no": 22462.0, "claims_intimated_amt": 898.75, "total_claims_no": 22490.0, "total_claims_amt": 903.3793899107526, "claims_paid_no": 21257.0, "claims_paid_amt": 810.713768975, "claims_repudiated_no": 1157.0, "claims_repudiated_amt": 79.37350822459376, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 40.0, "claims_unclaimed_amt": 5.5160395691584, "claims_pending_end_no": 36.0, "claims_pending_end_amt": 7.7760731420004365, "claims_paid_ratio_no": 0.94517563361494, "claims_paid_ratio_amt": 0.8974233616898131, "claims_repudiated_rejected_ratio_no": 0.0514450867052023, "claims_repudiated_rejected_ratio_amt": 0.0878628725771962, "claims_pending_ratio_no": 0.001600711427301, "claims_pending_ratio_amt": 0.0086077601823179, "category": "Individual Death Claims"}, {"life_insurer": "Sahara Life", "year": "2019-20", "claims_pending_start_no": 16.0, "claims_pending_start_amt": 0.24, "claims_intimated_no": 638.0, "claims_intimated_amt": 5.97, "total_claims_no": 654.0, "total_claims_amt": 6.2127995469999995, "claims_paid_no": 585.0, "claims_paid_amt": 5.444943747, "claims_repudiated_no": 10.0, "claims_repudiated_amt": 0.1831966669999999, "claims_rejected_no": 13.0, "claims_rejected_amt": 0.001825, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 46.0, "claims_pending_end_amt": 0.5828341329999995, "claims_paid_ratio_no": 0.0, "claims_paid_ratio_amt": 0.0, "claims_repudiated_rejected_ratio_no": 0.0, "claims_repudiated_rejected_ratio_amt": 0.0, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 0.0938118361281163, "category": "Individual Death Claims"}, {"life_insurer": "Shriram", "year": "2019-20", "claims_pending_start_no": 39.0, "claims_pending_start_amt": 2.16, "claims_intimated_no": 3035.0, "claims_intimated_amt": 91.82, "total_claims_no": 3074.0, "total_claims_amt": 93.97626589, "claims_paid_no": 2816.0, "claims_paid_amt": 77.884964184, "claims_repudiated_no": 195.0, "claims_repudiated_amt": 8.656821294, "claims_rejected_no": 58.0, "claims_rejected_amt": 7.315036312, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 0.1194441000000097, "claims_paid_ratio_no": 0.9160702667534156, "claims_paid_ratio_amt": 0.8287727060273388, "claims_repudiated_rejected_ratio_no": 0.0823031880286272, "claims_repudiated_rejected_ratio_amt": 0.1699562911415866, "claims_pending_ratio_no": 0.001626545217957, "claims_pending_ratio_amt": 0.0012710028310746, "category": "Individual Death Claims"}, {"life_insurer": "Star Union", "year": "2019-20", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 0.33, "claims_intimated_no": 1243.0, "claims_intimated_amt": 52.96, "total_claims_no": 1248.0, "total_claims_amt": 53.29108412800001, "claims_paid_no": 1210.0, "claims_paid_amt": 50.474073028000014, "claims_repudiated_no": 35.0, "claims_repudiated_amt": 2.0959461, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.721064999999995, "claims_paid_ratio_no": 0.969551282051282, "claims_paid_ratio_amt": 0.9471391669714616, "claims_repudiated_rejected_ratio_no": 0.0280448717948717, "claims_repudiated_rejected_ratio_amt": 0.039330145638729, "claims_pending_ratio_no": 0.0024038461538461, "claims_pending_ratio_amt": 0.0135306873898092, "category": "Individual Death Claims"}, {"life_insurer": "Tata AIA", "year": "2019-20", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 2982.0, "claims_intimated_amt": 231.96, "total_claims_no": 2982.0, "total_claims_amt": 231.96, "claims_paid_no": 2954.0, "claims_paid_amt": 222.47, "claims_repudiated_no": 28.0, "claims_repudiated_amt": 9.49, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -1.9539925233402755e-14, "claims_paid_ratio_no": 0.9906103286384976, "claims_paid_ratio_amt": 0.9590877737540956, "claims_repudiated_rejected_ratio_no": 0.0093896713615023, "claims_repudiated_rejected_ratio_amt": 0.0409122262459044, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -8.423833951285892e-17, "category": "Individual Death Claims"}, {"life_insurer": "Aditya Birla Life", "year": "2018-19", "claims_pending_start_no": 45.0, "claims_pending_start_amt": 9.75413582199996, "claims_intimated_no": 5215.0, "claims_intimated_amt": 297.14534561474886, "total_claims_no": 5260.0, "total_claims_amt": 306.89948143674883, "claims_paid_no": 5110.0, "claims_paid_amt": 276.4391017923288, "claims_repudiated_no": 126.0, "claims_repudiated_amt": 20.66588712664, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 24.0, "claims_pending_end_amt": 9.794492517780018, "claims_paid_ratio_no": 0.9714828897338404, "claims_paid_ratio_amt": 0.9007480250477458, "claims_repudiated_rejected_ratio_no": 0.0239543726235741, "claims_repudiated_rejected_ratio_amt": 0.067337641073529, "claims_pending_ratio_no": 0.0045627376425855, "claims_pending_ratio_amt": 0.0319143338787251, "category": "Individual Death Claims"}, {"life_insurer": "Aegon", "year": "2018-19", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 507.0, "claims_intimated_amt": 79.17759341641, "total_claims_no": 507.0, "total_claims_amt": 79.17759341641, "claims_paid_no": 489.0, "claims_paid_amt": 75.68886761897, "claims_repudiated_no": 18.0, "claims_repudiated_amt": 3.48872579744, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 1.1546319456101628e-14, "claims_paid_ratio_no": 0.9644970414201184, "claims_paid_ratio_amt": 0.9559379661984404, "claims_repudiated_rejected_ratio_no": 0.0355029585798816, "claims_repudiated_rejected_ratio_amt": 0.0440620338015595, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 1.4582811825786798e-16, "category": "Individual Death Claims"}, {"life_insurer": "Ageas Federal", "year": "2018-19", "claims_pending_start_no": 6.0, "claims_pending_start_amt": 0.220897, "claims_intimated_no": 1300.0, "claims_intimated_amt": 56.9290245955, "total_claims_no": 1306.0, "total_claims_amt": 57.1499215955, "claims_paid_no": 1251.0, "claims_paid_amt": 53.0184595955, "claims_repudiated_no": 47.0, "claims_repudiated_amt": 2.606351, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 1.525110999999999, "claims_paid_ratio_no": 0.9578866768759572, "claims_paid_ratio_amt": 0.9277083522661332, "claims_repudiated_rejected_ratio_no": 0.0359877488514548, "claims_repudiated_rejected_ratio_amt": 0.0456055043862951, "claims_pending_ratio_no": 0.006125574272588, "claims_pending_ratio_amt": 0.0266861433475717, "category": "Individual Death Claims"}, {"life_insurer": "Aviva", "year": "2018-19", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 1.3685121, "claims_intimated_no": 930.0, "claims_intimated_amt": 91.919818, "total_claims_no": 938.0, "total_claims_amt": 93.2883301, "claims_paid_no": 901.0, "claims_paid_amt": 88.6746884, "claims_repudiated_no": 20.0, "claims_repudiated_amt": 2.3993049, "claims_rejected_no": 15.0, "claims_rejected_amt": 1.9159368, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.2984000000000162, "claims_paid_ratio_no": 0.960554371002132, "claims_paid_ratio_amt": 0.950544278206562, "claims_repudiated_rejected_ratio_no": 0.0373134328358208, "claims_repudiated_rejected_ratio_amt": 0.0462570366022662, "claims_pending_ratio_no": 0.0021321961620469, "claims_pending_ratio_amt": 0.0031986851911717, "category": "Individual Death Claims"}, {"life_insurer": "Bajaj Allianz", "year": "2018-19", "claims_pending_start_no": 250.0, "claims_pending_start_amt": 31.459933034999995, "claims_intimated_no": 12517.0, "claims_intimated_amt": 359.028844693769, "total_claims_no": 12767.0, "total_claims_amt": 390.488777728769, "claims_paid_no": 12130.0, "claims_paid_amt": 349.0155202039998, "claims_repudiated_no": 445.0, "claims_repudiated_amt": 33.989023051, "claims_rejected_no": 153.0, "claims_rejected_amt": 3.053149763, "claims_unclaimed_no": 36.0, "claims_unclaimed_amt": 4.103684679, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.3274000317691703, "claims_paid_ratio_no": 0.9501057413644552, "claims_paid_ratio_amt": 0.8937914227241218, "claims_repudiated_rejected_ratio_no": 0.0468395081068379, "claims_repudiated_rejected_ratio_amt": 0.0948610432019361, "claims_pending_ratio_no": 0.0002349808099005, "claims_pending_ratio_amt": 0.0008384364684523, "category": "Individual Death Claims"}, {"life_insurer": "Bharti Axa", "year": "2018-19", "claims_pending_start_no": 7.0, "claims_pending_start_amt": 0.745815, "claims_intimated_no": 1058.0, "claims_intimated_amt": 48.41218241653611, "total_claims_no": 1065.0, "total_claims_amt": 49.15799741653611, "claims_paid_no": 1036.0, "claims_paid_amt": 46.993217487536135, "claims_repudiated_no": 22.0, "claims_repudiated_amt": 1.147833328, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 7.0, "claims_pending_end_amt": 1.0169466009999768, "claims_paid_ratio_no": 0.9727699530516432, "claims_paid_ratio_amt": 0.9559628129141045, "claims_repudiated_rejected_ratio_no": 0.0206572769953051, "claims_repudiated_rejected_ratio_amt": 0.0233498797413151, "claims_pending_ratio_no": 0.0065727699530516, "claims_pending_ratio_amt": 0.0206873073445805, "category": "Individual Death Claims"}, {"life_insurer": "Canara HSBC OBC", "year": "2018-19", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 0.62, "claims_intimated_no": 1004.0, "claims_intimated_amt": 82.80127981599998, "total_claims_no": 1006.0, "total_claims_amt": 83.42127981599998, "claims_paid_no": 946.0, "claims_paid_amt": 74.085316879, "claims_repudiated_no": 59.0, "claims_repudiated_amt": 8.539316137000002, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0466468, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.7499999999999747, "claims_paid_ratio_no": 0.9403578528827038, "claims_paid_ratio_amt": 0.8880865534838107, "claims_repudiated_rejected_ratio_no": 0.0586481113320079, "claims_repudiated_rejected_ratio_amt": 0.1029229347228647, "claims_pending_ratio_no": 0.0009940357852882, "claims_pending_ratio_amt": 0.0089905117933245, "category": "Individual Death Claims"}, {"life_insurer": "Edelweiss Tokio", "year": "2018-19", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 239.0, "claims_intimated_amt": 14.211517449583, "total_claims_no": 239.0, "total_claims_amt": 14.211517449583, "claims_paid_no": 229.0, "claims_paid_amt": 13.418339916593, "claims_repudiated_no": 10.0, "claims_repudiated_amt": 0.79317753299, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -1.2212453270876722e-15, "claims_paid_ratio_no": 0.9581589958158996, "claims_paid_ratio_amt": 0.9441876959442306, "claims_repudiated_rejected_ratio_no": 0.0418410041841004, "claims_repudiated_rejected_ratio_amt": 0.0558123040557694, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -8.593349242402727e-17, "category": "Individual Death Claims"}, {"life_insurer": "Exide Life", "year": "2018-19", "claims_pending_start_no": 5.0, "claims_pending_start_amt": 0.8154575209999919, "claims_intimated_no": 3330.0, "claims_intimated_amt": 84.19840213499998, "total_claims_no": 3335.0, "total_claims_amt": 85.01385965599997, "claims_paid_no": 3236.0, "claims_paid_amt": 76.0684109555836, "claims_repudiated_no": 99.0, "claims_repudiated_amt": 8.9454487, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 4.1636383230070346e-10, "claims_paid_ratio_no": 0.9703148425787106, "claims_paid_ratio_amt": 0.8947765842344622, "claims_repudiated_rejected_ratio_no": 0.0296851574212893, "claims_repudiated_rejected_ratio_amt": 0.1052234157606401, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 4.897599450083526e-12, "category": "Individual Death Claims"}, {"life_insurer": "Future Generali", "year": "2018-19", "claims_pending_start_no": 19.0, "claims_pending_start_amt": 2.140372306, "claims_intimated_no": 1138.0, "claims_intimated_amt": 38.173337559, "total_claims_no": 1157.0, "total_claims_amt": 40.31370986500001, "claims_paid_no": 1101.0, "claims_paid_amt": 35.17339376299999, "claims_repudiated_no": 48.0, "claims_repudiated_amt": 4.28674823, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 0.8535678720000144, "claims_paid_ratio_no": 0.9515989628349178, "claims_paid_ratio_amt": 0.8724921095276624, "claims_repudiated_rejected_ratio_no": 0.041486603284356, "claims_repudiated_rejected_ratio_amt": 0.1063347492541666, "claims_pending_ratio_no": 0.006914433880726, "claims_pending_ratio_amt": 0.0211731412181708, "category": "Individual Death Claims"}, {"life_insurer": "HDFC Life", "year": "2018-19", "claims_pending_start_no": 65.0, "claims_pending_start_amt": 10.023818829, "claims_intimated_no": 12881.0, "claims_intimated_amt": 617.6936443850657, "total_claims_no": 12946.0, "total_claims_amt": 627.7174632140657, "claims_paid_no": 12822.0, "claims_paid_amt": 577.2959979270655, "claims_repudiated_no": 67.0, "claims_repudiated_amt": 33.492013013, "claims_rejected_no": 23.0, "claims_rejected_amt": 6.743007756, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 34.0, "claims_pending_end_amt": 10.186444518000162, "claims_paid_ratio_no": 0.9904217518924764, "claims_paid_ratio_amt": 0.9196749043290432, "claims_repudiated_rejected_ratio_no": 0.0069519542715896, "claims_repudiated_rejected_ratio_amt": 0.0640973417610319, "claims_pending_ratio_no": 0.0026262938359338, "claims_pending_ratio_amt": 0.0162277539099248, "category": "Individual Death Claims"}, {"life_insurer": "ICICI Prudential", "year": "2018-19", "claims_pending_start_no": 27.0, "claims_pending_start_amt": 13.46009352139, "claims_intimated_no": 10799.0, "claims_intimated_amt": 880.4748515060991, "total_claims_no": 10826.0, "total_claims_amt": 893.9349450274891, "claims_paid_no": 10672.0, "claims_paid_amt": 826.6589213807799, "claims_repudiated_no": 128.0, "claims_repudiated_amt": 51.58215872699999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 5.0, "claims_unclaimed_amt": 0.3251068724373, "claims_pending_end_no": 21.0, "claims_pending_end_amt": 15.368758047271886, "claims_paid_ratio_no": 0.985774986144467, "claims_paid_ratio_amt": 0.9247417007010053, "claims_repudiated_rejected_ratio_no": 0.0118233881396637, "claims_repudiated_rejected_ratio_amt": 0.057702363034274, "claims_pending_ratio_no": 0.0019397746166635, "claims_pending_ratio_amt": 0.0171922555805213, "category": "Individual Death Claims"}, {"life_insurer": "India First", "year": "2018-19", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 3.58543921, "claims_intimated_no": 2239.0, "claims_intimated_amt": 86.25039308000001, "total_claims_no": 2242.0, "total_claims_amt": 89.83583229000001, "claims_paid_no": 2081.0, "claims_paid_amt": 74.94961780000001, "claims_repudiated_no": 144.0, "claims_repudiated_amt": 13.096635147, "claims_rejected_no": 8.0, "claims_rejected_amt": 0.243645743, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 9.0, "claims_pending_end_amt": 1.5459336000000017, "claims_paid_ratio_no": 0.9281891168599464, "claims_paid_ratio_amt": 0.8342953573141544, "claims_repudiated_rejected_ratio_no": 0.0677966101694915, "claims_repudiated_rejected_ratio_amt": 0.1484962130359753, "claims_pending_ratio_no": 0.0040142729705619, "claims_pending_ratio_amt": 0.0172084296498701, "category": "Individual Death Claims"}, {"life_insurer": "Kotak Mahindra", "year": "2018-19", "claims_pending_start_no": 18.0, "claims_pending_start_amt": 2.696687520005036, "claims_intimated_no": 3020.0, "claims_intimated_amt": 145.7202850779999, "total_claims_no": 3038.0, "total_claims_amt": 148.41697259800495, "claims_paid_no": 2959.0, "claims_paid_amt": 136.76834225399983, "claims_repudiated_no": 67.0, "claims_repudiated_amt": 7.571781243999999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 12.0, "claims_pending_end_amt": 4.076849100005114, "claims_paid_ratio_no": 0.9739960500329164, "claims_paid_ratio_amt": 0.92151416283395, "claims_repudiated_rejected_ratio_no": 0.0220539828834759, "claims_repudiated_rejected_ratio_amt": 0.0510169498235795, "claims_pending_ratio_no": 0.0039499670836076, "claims_pending_ratio_amt": 0.0274688873424703, "category": "Individual Death Claims"}, {"life_insurer": "LIC", "year": "2018-19", "claims_pending_start_no": 569.0, "claims_pending_start_amt": 90.28, "claims_intimated_no": 750381.0, "claims_intimated_amt": 13412.92, "total_claims_no": 750950.0, "total_claims_amt": 13503.2, "claims_paid_no": 734328.0, "claims_paid_amt": 12871.92, "claims_repudiated_no": 3199.0, "claims_repudiated_amt": 193.07, "claims_rejected_no": 3442.0, "claims_rejected_amt": 8.47, "claims_unclaimed_no": 9190.0, "claims_unclaimed_amt": 293.82, "claims_pending_end_no": 791.0, "claims_pending_end_amt": 135.92000000000064, "claims_paid_ratio_no": 0.9778653705306612, "claims_paid_ratio_amt": 0.9532496000947924, "claims_repudiated_rejected_ratio_no": 0.0088434649444037, "claims_repudiated_rejected_ratio_amt": 0.0149253510279044, "claims_pending_ratio_no": 0.0010533324455689, "claims_pending_ratio_amt": 0.0100657621897032, "category": "Individual Death Claims"}, {"life_insurer": "Max Life", "year": "2018-19", "claims_pending_start_no": 2.0, "claims_pending_start_amt": 1.017864792, "claims_intimated_no": 15085.0, "claims_intimated_amt": 478.438132283, "total_claims_no": 15087.0, "total_claims_amt": 479.455997075, "claims_paid_no": 14897.0, "claims_paid_amt": 452.2481335450001, "claims_repudiated_no": 187.0, "claims_repudiated_amt": 25.611608186, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 1.5962553439999425, "claims_paid_ratio_no": 0.9874063763505004, "claims_paid_ratio_amt": 0.9432526369552452, "claims_repudiated_rejected_ratio_no": 0.0123947769602969, "claims_repudiated_rejected_ratio_amt": 0.0534180578452408, "claims_pending_ratio_no": 0.0001988466892026, "claims_pending_ratio_amt": 0.0033293051995139, "category": "Individual Death Claims"}, {"life_insurer": "PNB Met Life", "year": "2018-19", "claims_pending_start_no": 8.0, "claims_pending_start_amt": 4.107871370000001, "claims_intimated_no": 4162.0, "claims_intimated_amt": 223.44731933200012, "total_claims_no": 4170.0, "total_claims_amt": 227.55519070200012, "claims_paid_no": 4012.0, "claims_paid_amt": 203.945343713, "claims_repudiated_no": 157.0, "claims_repudiated_amt": 23.586986989, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 1.0, "claims_unclaimed_amt": 0.02286, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 1.1867590243852533e-13, "claims_paid_ratio_no": 0.9621103117505996, "claims_paid_ratio_amt": 0.8962456232434667, "claims_repudiated_rejected_ratio_no": 0.0376498800959232, "claims_repudiated_rejected_ratio_amt": 0.1036539176110856, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 5.215257980818376e-16, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica Life", "year": "2018-19", "claims_pending_start_no": 7.0, "claims_pending_start_amt": 1.7315522, "claims_intimated_no": 649.0, "claims_intimated_amt": 27.999386, "total_claims_no": 656.0, "total_claims_amt": 29.730938199999997, "claims_paid_no": 635.0, "claims_paid_amt": 26.16, "claims_repudiated_no": 19.0, "claims_repudiated_amt": 3.272937553, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.2980006469999967, "claims_paid_ratio_no": 0.9679878048780488, "claims_paid_ratio_amt": 0.8798915064173791, "claims_repudiated_rejected_ratio_no": 0.0289634146341463, "claims_repudiated_rejected_ratio_amt": 0.1100852428868188, "claims_pending_ratio_no": 0.0030487804878048, "claims_pending_ratio_amt": 0.010023250695802, "category": "Individual Death Claims"}, {"life_insurer": "Reliance Nippon", "year": "2018-19", "claims_pending_start_no": 4.0, "claims_pending_start_amt": 1.0988099854, "claims_intimated_no": 8367.0, "claims_intimated_amt": 163.8664053598, "total_claims_no": 8371.0, "total_claims_amt": 164.96521534520002, "claims_paid_no": 8179.0, "claims_paid_amt": 154.467060108, "claims_repudiated_no": 188.0, "claims_repudiated_amt": 9.591746185, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 4.0, "claims_pending_end_amt": 0.906409052200024, "claims_paid_ratio_no": 0.9770636722016486, "claims_paid_ratio_amt": 0.9363614007035848, "claims_repudiated_rejected_ratio_no": 0.0224584876358857, "claims_repudiated_rejected_ratio_amt": 0.0581440527624485, "claims_pending_ratio_no": 0.0004778401624656, "claims_pending_ratio_amt": 0.0054945465339666, "category": "Individual Death Claims"}, {"life_insurer": "SBI Life", "year": "2018-19", "claims_pending_start_no": 72.0, "claims_pending_start_amt": 5.633757310000492, "claims_intimated_no": 19830.0, "claims_intimated_amt": 758.0965199195723, "total_claims_no": 19902.0, "total_claims_amt": 763.7302772295728, "claims_paid_no": 18913.0, "claims_paid_amt": 688.9286379361798, "claims_repudiated_no": 889.0, "claims_repudiated_amt": 66.366428463, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 72.0, "claims_unclaimed_amt": 3.801153394112202, "claims_pending_end_no": 28.0, "claims_pending_end_amt": 4.634057436280801, "claims_paid_ratio_no": 0.9503065018591096, "claims_paid_ratio_amt": 0.9020575175247268, "claims_repudiated_rejected_ratio_no": 0.0446688774997487, "claims_repudiated_rejected_ratio_amt": 0.0868977313610556, "claims_pending_ratio_no": 0.0014068937795196, "claims_pending_ratio_amt": 0.0060676623337375, "category": "Individual Death Claims"}, {"life_insurer": "Sahara Life", "year": "2018-19", "claims_pending_start_no": 59.0, "claims_pending_start_amt": 0.478455995, "claims_intimated_no": 622.0, "claims_intimated_amt": 5.406160159, "total_claims_no": 681.0, "total_claims_amt": 5.884616154, "claims_paid_no": 614.0, "claims_paid_amt": 5.171924929, "claims_repudiated_no": 39.0, "claims_repudiated_amt": 0.473281225, "claims_rejected_no": 12.0, "claims_rejected_amt": 0.00261, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 0.2367999999999994, "claims_paid_ratio_no": 0.0, "claims_paid_ratio_amt": 0.0, "claims_repudiated_rejected_ratio_no": 0.0, "claims_repudiated_rejected_ratio_amt": 0.0, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 0.0402405176145664, "category": "Individual Death Claims"}, {"life_insurer": "Shriram", "year": "2018-19", "claims_pending_start_no": 62.0, "claims_pending_start_amt": 5.0560291, "claims_intimated_no": 2768.0, "claims_intimated_amt": 82.8641142, "total_claims_no": 2830.0, "total_claims_amt": 87.9201433, "claims_paid_no": 2414.0, "claims_paid_amt": 66.0817737, "claims_repudiated_no": 334.0, "claims_repudiated_amt": 15.0061131, "claims_rejected_no": 43.0, "claims_rejected_amt": 4.6754245, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 39.0, "claims_pending_end_amt": 2.1568320000000067, "claims_paid_ratio_no": 0.8530035335689046, "claims_paid_ratio_amt": 0.7516113056653764, "claims_repudiated_rejected_ratio_no": 0.1332155477031802, "claims_repudiated_rejected_ratio_amt": 0.223856978176695, "claims_pending_ratio_no": 0.0137809187279151, "claims_pending_ratio_amt": 0.0245317161579285, "category": "Individual Death Claims"}, {"life_insurer": "Star Union", "year": "2018-19", "claims_pending_start_no": 12.0, "claims_pending_start_amt": 2.1298385629999688, "claims_intimated_no": 1246.0, "claims_intimated_amt": 49.198019828, "total_claims_no": 1258.0, "total_claims_amt": 51.32785839099997, "claims_paid_no": 1217.0, "claims_paid_amt": 47.257513341000006, "claims_repudiated_no": 35.0, "claims_repudiated_amt": 3.707912, "claims_rejected_no": 1.0, "claims_rejected_amt": 0.032033656, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 0.3303993939999644, "claims_paid_ratio_no": 0.967408585055644, "claims_paid_ratio_amt": 0.920699106146348, "claims_repudiated_rejected_ratio_no": 0.0286168521462639, "claims_repudiated_rejected_ratio_amt": 0.0728638554819535, "claims_pending_ratio_no": 0.0039745627980922, "claims_pending_ratio_amt": 0.0064370383716983, "category": "Individual Death Claims"}, {"life_insurer": "Tata AIA", "year": "2018-19", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 2700.0, "claims_intimated_amt": 150.72, "total_claims_no": 2700.0, "total_claims_amt": 150.72, "claims_paid_no": 2675.0, "claims_paid_amt": 144.87, "claims_repudiated_no": 25.0, "claims_repudiated_amt": 5.8500000000000005, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -6.217248937900877e-15, "claims_paid_ratio_no": 0.9907407407407408, "claims_paid_ratio_amt": 0.961186305732484, "claims_repudiated_rejected_ratio_no": 0.0092592592592592, "claims_repudiated_rejected_ratio_amt": 0.0388136942675159, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -4.125032469414064e-17, "category": "Individual Death Claims"}, {"life_insurer": "Aditya Birla Life", "year": "2017-18", "claims_pending_start_no": 48.0, "claims_pending_start_amt": 4.331115660600078, "claims_intimated_no": 5443.0, "claims_intimated_amt": 269.8342132333999, "total_claims_no": 5491.0, "total_claims_amt": 274.16532889399997, "claims_paid_no": 5292.0, "claims_paid_amt": 248.155021966, "claims_repudiated_no": 154.0, "claims_repudiated_amt": 16.256171106, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 45.0, "claims_unclaimed_amt": 9.754135821999975, "claims_pending_end_no": 24.0, "claims_pending_end_amt": 9.794492517780018, "claims_paid_ratio_no": 0.9637588781642688, "claims_paid_ratio_amt": 0.9051291166796064, "claims_repudiated_rejected_ratio_no": 0.0280458932799125, "claims_repudiated_rejected_ratio_amt": 0.0592933146272667, "claims_pending_ratio_no": 0.0043707885631032, "claims_pending_ratio_amt": 0.0357247670859463, "category": "Individual Death Claims"}, {"life_insurer": "Aegon", "year": "2017-18", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 554.0, "claims_intimated_amt": 52.00041505895997, "total_claims_no": 554.0, "total_claims_amt": 52.00041505895997, "claims_paid_no": 530.0, "claims_paid_amt": 49.17115757996002, "claims_repudiated_no": 24.0, "claims_repudiated_amt": 2.829257479, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": -4.3520742565306136e-14, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 1.1546319456101628e-14, "claims_paid_ratio_no": 0.9566787003610108, "claims_paid_ratio_amt": 0.9455916366092072, "claims_repudiated_rejected_ratio_no": 0.0433212996389891, "claims_repudiated_rejected_ratio_amt": 0.0544083633907937, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 2.2204283260066266e-16, "category": "Individual Death Claims"}, {"life_insurer": "Ageas Federal", "year": "2017-18", "claims_pending_start_no": 7.0, "claims_pending_start_amt": 0.4652075, "claims_intimated_no": 1154.0, "claims_intimated_amt": 50.042237938, "total_claims_no": 1161.0, "total_claims_amt": 50.507445438, "claims_paid_no": 1068.0, "claims_paid_amt": 45.148741038, "claims_repudiated_no": 87.0, "claims_repudiated_amt": 5.1378074, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 6.0, "claims_unclaimed_amt": 0.2208970000000008, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 1.525110999999999, "claims_paid_ratio_no": 0.9198966408268734, "claims_paid_ratio_amt": 0.8939026839799682, "claims_repudiated_rejected_ratio_no": 0.0749354005167958, "claims_repudiated_rejected_ratio_amt": 0.1017237628124921, "claims_pending_ratio_no": 0.0068906115417743, "claims_pending_ratio_amt": 0.0301957659266718, "category": "Individual Death Claims"}, {"life_insurer": "Aviva", "year": "2017-18", "claims_pending_start_no": 7.0, "claims_pending_start_amt": 2.782993, "claims_intimated_no": 1111.0, "claims_intimated_amt": 103.1105406, "total_claims_no": 1118.0, "total_claims_amt": 105.8935336, "claims_paid_no": 1056.0, "claims_paid_amt": 97.6827587, "claims_repudiated_no": 54.0, "claims_repudiated_amt": 6.8422628, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 8.0, "claims_unclaimed_amt": 1.3685121000000038, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.2984000000000162, "claims_paid_ratio_no": 0.9445438282647584, "claims_paid_ratio_amt": 0.9224619802469224, "claims_repudiated_rejected_ratio_no": 0.0483005366726296, "claims_repudiated_rejected_ratio_amt": 0.0646145479085231, "claims_pending_ratio_no": 0.0017889087656529, "claims_pending_ratio_amt": 0.0028179246631544, "category": "Individual Death Claims"}, {"life_insurer": "Bajaj Allianz", "year": "2017-18", "claims_pending_start_no": 63.0, "claims_pending_start_amt": 5.52952390068003, "claims_intimated_no": 14252.0, "claims_intimated_amt": 365.6906648127486, "total_claims_no": 14315.0, "total_claims_amt": 371.2201887134286, "claims_paid_no": 13176.0, "claims_paid_amt": 311.5880202404286, "claims_repudiated_no": 829.0, "claims_repudiated_amt": 27.252818933, "claims_rejected_no": 60.0, "claims_rejected_amt": 0.919416505, "claims_unclaimed_no": 250.0, "claims_unclaimed_amt": 31.45993303500003, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 0.3274000317691703, "claims_paid_ratio_no": 0.9204331121201536, "claims_paid_ratio_amt": 0.8393617311610324, "claims_repudiated_rejected_ratio_no": 0.0621026894865525, "claims_repudiated_rejected_ratio_amt": 0.075890903282063, "claims_pending_ratio_no": 0.0002095703807195, "claims_pending_ratio_amt": 0.0008819564283501, "category": "Individual Death Claims"}, {"life_insurer": "Bharti Axa", "year": "2017-18", "claims_pending_start_no": 34.0, "claims_pending_start_amt": 3.7301900889999993, "claims_intimated_no": 854.0, "claims_intimated_amt": 40.38301656790243, "total_claims_no": 888.0, "total_claims_amt": 44.11320665690243, "claims_paid_no": 860.0, "claims_paid_amt": 42.475024190892434, "claims_repudiated_no": 21.0, "claims_repudiated_amt": 0.892367636, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 7.0, "claims_unclaimed_amt": 0.7458148300099937, "claims_pending_end_no": 7.0, "claims_pending_end_amt": 1.0169466009999768, "claims_paid_ratio_no": 0.9684684684684683, "claims_paid_ratio_amt": 0.9628641264111398, "claims_repudiated_rejected_ratio_no": 0.0236486486486486, "claims_repudiated_rejected_ratio_amt": 0.0202290357837854, "claims_pending_ratio_no": 0.0078828828828828, "claims_pending_ratio_amt": 0.0230531098976649, "category": "Individual Death Claims"}, {"life_insurer": "Canara HSBC OBC", "year": "2017-18", "claims_pending_start_no": 1.0, "claims_pending_start_amt": 0.0875, "claims_intimated_no": 836.0, "claims_intimated_amt": 53.29323009600001, "total_claims_no": 837.0, "total_claims_amt": 53.38073009600001, "claims_paid_no": 797.0, "claims_paid_amt": 49.127114511000016, "claims_repudiated_no": 38.0, "claims_repudiated_amt": 3.633615584999999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 2.0, "claims_unclaimed_amt": 0.6199999999999926, "claims_pending_end_no": 1.0, "claims_pending_end_amt": 0.7499999999999747, "claims_paid_ratio_no": 0.95221027479092, "claims_paid_ratio_amt": 0.9203155225237594, "claims_repudiated_rejected_ratio_no": 0.045400238948626, "claims_repudiated_rejected_ratio_amt": 0.0680697993164443, "claims_pending_ratio_no": 0.001194743130227, "claims_pending_ratio_amt": 0.014050013902979, "category": "Individual Death Claims"}, {"life_insurer": "Edelweiss Tokio", "year": "2017-18", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 189.0, "claims_intimated_amt": 11.57, "total_claims_no": 189.0, "total_claims_amt": 11.57, "claims_paid_no": 180.0, "claims_paid_amt": 11.313629295, "claims_repudiated_no": 9.0, "claims_repudiated_amt": 0.26, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": -0.0036292949999998, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -1.2212453270876722e-15, "claims_paid_ratio_no": 0.9523809523809524, "claims_paid_ratio_amt": 0.9778417713915298, "claims_repudiated_rejected_ratio_no": 0.0476190476190476, "claims_repudiated_rejected_ratio_amt": 0.0224719101123595, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -1.0555275082866655e-16, "category": "Individual Death Claims"}, {"life_insurer": "Exide Life", "year": "2017-18", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 3357.0, "claims_intimated_amt": 86.214817957, "total_claims_no": 3357.0, "total_claims_amt": 86.214817957, "claims_paid_no": 3250.0, "claims_paid_amt": 77.256677729, "claims_repudiated_no": 102.0, "claims_repudiated_amt": 8.142682706999999, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 5.0, "claims_unclaimed_amt": 0.8154575209999919, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 4.1636383230070346e-10, "claims_paid_ratio_no": 0.9681263032469468, "claims_paid_ratio_amt": 0.896095120998018, "claims_repudiated_rejected_ratio_no": 0.0303842716711349, "claims_repudiated_rejected_ratio_amt": 0.0944464408781933, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 4.829376691468127e-12, "category": "Individual Death Claims"}, {"life_insurer": "Future Generali", "year": "2017-18", "claims_pending_start_no": 17.0, "claims_pending_start_amt": 0.98, "claims_intimated_no": 1274.0, "claims_intimated_amt": 39.34057842499999, "total_claims_no": 1291.0, "total_claims_amt": 40.32057842499999, "claims_paid_no": 1202.0, "claims_paid_amt": 34.176781466999984, "claims_repudiated_no": 69.0, "claims_repudiated_amt": 4.144822346, "claims_rejected_no": 1.0, "claims_rejected_amt": 0.01604772, "claims_unclaimed_no": 19.0, "claims_unclaimed_amt": 1.9829268920000032, "claims_pending_end_no": 8.0, "claims_pending_end_amt": 0.8535678720000144, "claims_paid_ratio_no": 0.9310611928737412, "claims_paid_ratio_amt": 0.8476262693148603, "claims_repudiated_rejected_ratio_no": 0.0542215336948102, "claims_repudiated_rejected_ratio_amt": 0.1031947017759084, "claims_pending_ratio_no": 0.0061967467079783, "claims_pending_ratio_amt": 0.0211695344001011, "category": "Individual Death Claims"}, {"life_insurer": "HDFC Life", "year": "2017-18", "claims_pending_start_no": 59.0, "claims_pending_start_amt": 15.607194693, "claims_intimated_no": 12507.0, "claims_intimated_amt": 529.088966781346, "total_claims_no": 12566.0, "total_claims_amt": 544.696161474346, "claims_paid_no": 12289.0, "claims_paid_amt": 482.7785664373458, "claims_repudiated_no": 208.0, "claims_repudiated_amt": 46.7800114, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 69.0, "claims_unclaimed_amt": 15.13758363700024, "claims_pending_end_no": 34.0, "claims_pending_end_amt": 10.186444518000162, "claims_paid_ratio_no": 0.9779563902594304, "claims_paid_ratio_amt": 0.8863263606091771, "claims_repudiated_rejected_ratio_no": 0.0165526022600668, "claims_repudiated_rejected_ratio_amt": 0.0858827631048089, "claims_pending_ratio_no": 0.0027057138309724, "claims_pending_ratio_amt": 0.0187011498124536, "category": "Individual Death Claims"}, {"life_insurer": "ICICI Prudential", "year": "2017-18", "claims_pending_start_no": 36.0, "claims_pending_start_amt": 10.161435349763616, "claims_intimated_no": 11423.0, "claims_intimated_amt": 766.8395651976684, "total_claims_no": 11459.0, "total_claims_amt": 777.001000547432, "claims_paid_no": 11216.0, "claims_paid_amt": 715.1105263991569, "claims_repudiated_no": 203.0, "claims_repudiated_amt": 43.233296167, "claims_rejected_no": 13.0, "claims_rejected_amt": 5.18584382, "claims_unclaimed_no": 27.0, "claims_unclaimed_amt": 13.471334161275076, "claims_pending_end_no": 21.0, "claims_pending_end_amt": 15.368758047271886, "claims_paid_ratio_no": 0.978793961078628, "claims_paid_ratio_amt": 0.9203469826877052, "claims_repudiated_rejected_ratio_no": 0.0188498123745527, "claims_repudiated_rejected_ratio_amt": 0.0623154152348408, "claims_pending_ratio_no": 0.0018326206475259, "claims_pending_ratio_amt": 0.0197795859161621, "category": "Individual Death Claims"}, {"life_insurer": "India First", "year": "2017-18", "claims_pending_start_no": 29.0, "claims_pending_start_amt": 2.1, "claims_intimated_no": 1781.0, "claims_intimated_amt": 55.520349192, "total_claims_no": 1810.0, "total_claims_amt": 57.620349192, "claims_paid_no": 1626.0, "claims_paid_amt": 45.97, "claims_repudiated_no": 181.0, "claims_repudiated_amt": 8.06, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 3.0, "claims_unclaimed_amt": 3.5903491919999997, "claims_pending_end_no": 9.0, "claims_pending_end_amt": 1.5459336000000017, "claims_paid_ratio_no": 0.8983425414364641, "claims_paid_ratio_amt": 0.7978084243609975, "claims_repudiated_rejected_ratio_no": 0.1, "claims_repudiated_rejected_ratio_amt": 0.1398811377061048, "claims_pending_ratio_no": 0.0049723756906077, "claims_pending_ratio_amt": 0.0268296464995154, "category": "Individual Death Claims"}, {"life_insurer": "Kotak Mahindra", "year": "2017-18", "claims_pending_start_no": 19.0, "claims_pending_start_amt": 2.4020368930000022, "claims_intimated_no": 3055.0, "claims_intimated_amt": 132.05058032311405, "total_claims_no": 3074.0, "total_claims_amt": 134.45261721611405, "claims_paid_no": 2881.0, "claims_paid_amt": 119.497377830109, "claims_repudiated_no": 175.0, "claims_repudiated_amt": 12.258551865999998, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 18.0, "claims_unclaimed_amt": 2.6966875200050495, "claims_pending_end_no": 12.0, "claims_pending_end_amt": 4.076849100005114, "claims_paid_ratio_no": 0.9372153545868576, "claims_paid_ratio_amt": 0.8887694438705751, "claims_repudiated_rejected_ratio_no": 0.056929082628497, "claims_repudiated_rejected_ratio_amt": 0.0911737690185388, "claims_pending_ratio_no": 0.0039037085230969, "claims_pending_ratio_amt": 0.0303218277517955, "category": "Individual Death Claims"}, {"life_insurer": "LIC", "year": "2017-18", "claims_pending_start_no": 3203.0, "claims_pending_start_amt": 195.06, "claims_intimated_no": 735879.0, "claims_intimated_amt": 11184.340000000002, "total_claims_no": 739082.0, "total_claims_amt": 11379.4, "claims_paid_no": 724596.0, "claims_paid_amt": 10747.53, "claims_repudiated_no": 4958.0, "claims_repudiated_amt": 194.725, "claims_rejected_no": 8959.0, "claims_rejected_amt": 346.86, "claims_unclaimed_no": 569.0, "claims_unclaimed_amt": 90.28500000000076, "claims_pending_end_no": 791.0, "claims_pending_end_amt": 135.92000000000064, "claims_paid_ratio_no": 0.9804000097418148, "claims_paid_ratio_amt": 0.944472467792678, "claims_repudiated_rejected_ratio_no": 0.0188301162793844, "claims_repudiated_rejected_ratio_amt": 0.0475934583545705, "claims_pending_ratio_no": 0.0010702466032185, "claims_pending_ratio_amt": 0.0119443907411639, "category": "Individual Death Claims"}, {"life_insurer": "Max Life", "year": "2017-18", "claims_pending_start_no": 3.0, "claims_pending_start_amt": 0.146875372, "claims_intimated_no": 10329.0, "claims_intimated_amt": 370.8480362546359, "total_claims_no": 10332.0, "total_claims_amt": 370.9949116266359, "claims_paid_no": 10152.0, "claims_paid_amt": 353.39359720963546, "claims_repudiated_no": 178.0, "claims_repudiated_amt": 16.583449633999997, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 2.0, "claims_unclaimed_amt": 1.0178647830004266, "claims_pending_end_no": 3.0, "claims_pending_end_amt": 1.5962553439999425, "claims_paid_ratio_no": 0.9825783972125436, "claims_paid_ratio_amt": 0.9525564532952028, "claims_repudiated_rejected_ratio_no": 0.0172280294231513, "claims_repudiated_rejected_ratio_amt": 0.0446999382317387, "claims_pending_ratio_no": 0.0002903600464576, "claims_pending_ratio_amt": 0.0043026340630957, "category": "Individual Death Claims"}, {"life_insurer": "PNB Met Life", "year": "2017-18", "claims_pending_start_no": 108.0, "claims_pending_start_amt": 16.428039390000002, "claims_intimated_no": 3981.0, "claims_intimated_amt": 201.537802198, "total_claims_no": 4089.0, "total_claims_amt": 217.965841588, "claims_paid_no": 3726.0, "claims_paid_amt": 179.602009579, "claims_repudiated_no": 329.0, "claims_repudiated_amt": 33.023027286, "claims_rejected_no": 26.0, "claims_rejected_amt": 1.232933353, "claims_unclaimed_no": 8.0, "claims_unclaimed_amt": 4.107871370000019, "claims_pending_end_no": 0.0, "claims_pending_end_amt": 1.1867590243852533e-13, "claims_paid_ratio_no": 0.9112252384446076, "claims_paid_ratio_amt": 0.8239915404657051, "claims_repudiated_rejected_ratio_no": 0.0868182929811689, "claims_repudiated_rejected_ratio_amt": 0.1571620598412423, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 5.444701865847726e-16, "category": "Individual Death Claims"}, {"life_insurer": "Pramerica Life", "year": "2017-18", "claims_pending_start_no": 6.0, "claims_pending_start_amt": 0.6964289, "claims_intimated_no": 586.0, "claims_intimated_amt": 25.81449332135, "total_claims_no": 592.0, "total_claims_amt": 26.51092222135, "claims_paid_no": 572.0, "claims_paid_amt": 23.508783779, "claims_repudiated_no": 13.0, "claims_repudiated_amt": 1.294086281, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 7.0, "claims_unclaimed_amt": 1.7080521613500024, "claims_pending_end_no": 2.0, "claims_pending_end_amt": 0.2980006469999967, "claims_paid_ratio_no": 0.9662162162162162, "claims_paid_ratio_amt": 0.8867584304580587, "claims_repudiated_rejected_ratio_no": 0.0219594594594594, "claims_repudiated_rejected_ratio_amt": 0.0488133257000707, "claims_pending_ratio_no": 0.0033783783783783, "claims_pending_ratio_amt": 0.011240674485477, "category": "Individual Death Claims"}, {"life_insurer": "Reliance Nippon", "year": "2017-18", "claims_pending_start_no": 35.0, "claims_pending_start_amt": 4.755960916862968, "claims_intimated_no": 8952.0, "claims_intimated_amt": 168.90650871499994, "total_claims_no": 8987.0, "total_claims_amt": 173.6624696318629, "claims_paid_no": 8553.0, "claims_paid_amt": 149.53625298899993, "claims_repudiated_no": 403.0, "claims_repudiated_amt": 22.324716655999996, "claims_rejected_no": 27.0, "claims_rejected_amt": 0.7041211917568166, "claims_unclaimed_no": 4.0, "claims_unclaimed_amt": 1.0973787951061584, "claims_pending_end_no": 4.0, "claims_pending_end_amt": 0.906409052200024, "claims_paid_ratio_no": 0.9517080226994548, "claims_paid_ratio_amt": 0.8610740899055118, "claims_repudiated_rejected_ratio_no": 0.0478468899521531, "claims_repudiated_rejected_ratio_amt": 0.1326068775629779, "claims_pending_ratio_no": 0.0004450873483921, "claims_pending_ratio_amt": 0.0052193721194997, "category": "Individual Death Claims"}, {"life_insurer": "SBI Life", "year": "2017-18", "claims_pending_start_no": 132.0, "claims_pending_start_amt": 25.19260259500068, "claims_intimated_no": 18753.0, "claims_intimated_amt": 615.5885848841137, "total_claims_no": 18885.0, "total_claims_amt": 640.7811874791145, "claims_paid_no": 18274.0, "claims_paid_amt": 590.3271667569996, "claims_repudiated_no": 496.0, "claims_repudiated_amt": 35.900592001, "claims_rejected_no": 43.0, "claims_rejected_amt": 8.919671411113573, "claims_unclaimed_no": 72.0, "claims_unclaimed_amt": 5.633757310001247, "claims_pending_end_no": 28.0, "claims_pending_end_amt": 4.634057436280801, "claims_paid_ratio_no": 0.9676462801164946, "claims_paid_ratio_amt": 0.9212617010174642, "claims_repudiated_rejected_ratio_no": 0.0285411702409319, "claims_repudiated_rejected_ratio_amt": 0.0699462847660059, "claims_pending_ratio_no": 0.0014826581943341, "claims_pending_ratio_amt": 0.0072318874630379, "category": "Individual Death Claims"}, {"life_insurer": "Sahara Life", "year": "2017-18", "claims_pending_start_no": 26.0, "claims_pending_start_amt": 0.376145833, "claims_intimated_no": 646.0, "claims_intimated_amt": 6.242127808, "total_claims_no": 672.0, "total_claims_amt": 6.618273641, "claims_paid_no": 556.0, "claims_paid_amt": 5.405455313, "claims_repudiated_no": 57.0, "claims_repudiated_amt": 0.734362333, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 59.0, "claims_unclaimed_amt": 0.478455995, "claims_pending_end_no": 16.0, "claims_pending_end_amt": 0.2367999999999994, "claims_paid_ratio_no": 0.0, "claims_paid_ratio_amt": 0.0, "claims_repudiated_rejected_ratio_no": 0.0, "claims_repudiated_rejected_ratio_amt": 0.0, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": 0.0357797233606405, "category": "Individual Death Claims"}, {"life_insurer": "Shriram", "year": "2017-18", "claims_pending_start_no": 293.0, "claims_pending_start_amt": 14.2801582, "claims_intimated_no": 2853.0, "claims_intimated_amt": 87.471934821, "total_claims_no": 3146.0, "total_claims_amt": 101.752093021, "claims_paid_no": 2524.0, "claims_paid_amt": 69.799382637, "claims_repudiated_no": 560.0, "claims_repudiated_amt": 26.893223477, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 62.0, "claims_unclaimed_amt": 5.059486907000014, "claims_pending_end_no": 39.0, "claims_pending_end_amt": 2.1568320000000067, "claims_paid_ratio_no": 0.8022886204704387, "claims_paid_ratio_amt": 0.6859749078831677, "claims_repudiated_rejected_ratio_no": 0.1780038143674507, "claims_repudiated_rejected_ratio_amt": 0.2643014278974062, "claims_pending_ratio_no": 0.012396694214876, "claims_pending_ratio_amt": 0.021196930067619, "category": "Individual Death Claims"}, {"life_insurer": "Star Union", "year": "2017-18", "claims_pending_start_no": 19.0, "claims_pending_start_amt": 2.697453422136986, "claims_intimated_no": 1222.0, "claims_intimated_amt": 49.594740077, "total_claims_no": 1241.0, "total_claims_amt": 52.292193499136985, "claims_paid_no": 1145.0, "claims_paid_amt": 43.420676013000005, "claims_repudiated_no": 81.0, "claims_repudiated_amt": 6.60348483313698, "claims_rejected_no": 3.0, "claims_rejected_amt": 0.138032653, "claims_unclaimed_no": 12.0, "claims_unclaimed_amt": 2.130000000000001, "claims_pending_end_no": 5.0, "claims_pending_end_amt": 0.3303993939999644, "claims_paid_ratio_no": 0.9226430298146656, "claims_paid_ratio_amt": 0.83034719156917, "claims_repudiated_rejected_ratio_no": 0.0676873489121676, "claims_repudiated_rejected_ratio_amt": 0.1289201510785398, "claims_pending_ratio_no": 0.0040290088638195, "claims_pending_ratio_amt": 0.0063183311292041, "category": "Individual Death Claims"}, {"life_insurer": "Tata AIA", "year": "2017-18", "claims_pending_start_no": 0.0, "claims_pending_start_amt": 0.0, "claims_intimated_no": 2850.0, "claims_intimated_amt": 140.254515495, "total_claims_no": 2850.0, "total_claims_amt": 140.254515495, "claims_paid_no": 2793.0, "claims_paid_amt": 131.843542495, "claims_repudiated_no": 57.0, "claims_repudiated_amt": 8.4065787, "claims_rejected_no": 0.0, "claims_rejected_amt": 0.0, "claims_unclaimed_no": 0.0, "claims_unclaimed_amt": 0.0043942999999835, "claims_pending_end_no": 0.0, "claims_pending_end_amt": -6.217248937900877e-15, "claims_paid_ratio_no": 0.98, "claims_paid_ratio_amt": 0.940030643788436, "claims_repudiated_rejected_ratio_no": 0.02, "claims_repudiated_rejected_ratio_amt": 0.0599380253129867, "claims_pending_ratio_no": 0.0, "claims_pending_ratio_amt": -4.432833350112367e-17, "category": "Individual Death Claims"}, {"life_insurer": "</pre></body></html>Xtext/csvP_\u0011\u0003`https://storage.googleapis.com/kagglesdsdata/datasets/9341935/14625119/cleaned_individual_death_claims.csv?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=gcp-kaggle-com%40kaggle-161607.iam.gserviceaccount.com%2F20260130%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260130T175708Z&X-Goog-Expires=259200&X-Goog-SignedHeaders=host&X-Goog-Signature=10ad6e17df009326d1a357bbb29ded1ce6fd78d1287634fec4999c5ab598f0f1b04326d3d11a5f18d0df94a22ad6a55a66de43de9adbff65df8b79287fda67446913a2a154352c6d47ae2ec0d5ca0c8d3e1fffaa06a5f1d9f10bea0fa94f9d4cacfdb29b48a52d689f725fa4c138e7993b4b43d7682d3326cb2fe5a434207901cb216652f61e1f159c18b3a94cf2ef25c78e0dcc4bb8a4b4210e1a89cf22fbb9d76e6516c27c6237ab59469f266ff6f5499250feadbc9b37eebc1f00ab1a566b725eb5073cd9d024602962a2a1db3e3df8651645c71811015d669197b2d3268f1b16da94712bf3857b3f3ec092415d1bf192a1579404152b69d4747b637d750eUUTF-8\u0000\b\u0000\u000b\u0000\u001d\u0000(\u0000:\u0000P\u0000g\u0000v\u0000\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\u000f\u0000\u0000\u0000\u0000\u0000\u0000\u0002\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000", "year": null, "claims_pending_start_no": null, "claims_pending_start_amt": null, "claims_intimated_no": null, "claims_intimated_amt": null, "total_claims_no": null, "total_claims_amt": null, "claims_paid_no": null, "claims_paid_amt": null, "claims_repudiated_no": null, "claims_repudiated_amt": null, "claims_rejected_no": null, "claims_rejected_amt": null, "claims_unclaimed_no": null, "claims_unclaimed_amt": null, "claims_pending_end_no": null, "claims_pending_end_amt": null, "claims_paid_ratio_no": null, "claims_paid_ratio_amt": null, "claims_repudiated_rejected_ratio_no": null, "claims_repudiated_rejected_ratio_amt": null, "claims_pending_ratio_no": null, "claims_pending_ratio_amt": null, "category": null}, {"life_insurer": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0015", "year": null, "claims_pending_start_no": null, "claims_pending_start_amt": null, "claims_intimated_no": null, "claims_intimated_amt": null, "total_claims_no": null, "total_claims_amt": null, "claims_paid_no": null, "claims_paid_amt": null, "claims_repudiated_no": null, "claims_repudiated_amt": null, "claims_rejected_no": null, "claims_rejected_amt": null, "claims_unclaimed_no": null, "claims_unclaimed_amt": null, "claims_pending_end_no": null, "claims_pending_end_amt": null, "claims_paid_ratio_no": null, "claims_paid_ratio_amt": null, "claims_repudiated_rejected_ratio_no": null, "claims_repudiated_rejected_ratio_amt": null, "claims_pending_ratio_no": null, "claims_pending_ratio_amt": null, "category": null}]
+;
+
+const NAME_MAP = {
+  'ABSL':'Aditya Birla SL', 'Baj Alz':'Bajaj Allianz', 'Can HSBC':'Canara HSBC',
+  'Edelws':'Edelweiss Tokio', 'Fut Genli':'Future Generali', 'Indiafirst':'IndiaFirst',
+  'PNB Metlife':'PNB MetLife', 'SUD':'SUD Life'
+};
+
+function getName(n) { return NAME_MAP[n] || n; }
+function pct(v) { return (parseFloat(v)*100).toFixed(1)+'%'; }
+function num(v) { return parseInt(v).toLocaleString('en-IN'); }
+function crore(v) { return '₹'+parseFloat(v).toFixed(1)+'Cr'; }
+
+const YEARS = ['2017-18','2018-19','2019-20','2020-21','2021-22'];
+const EXCLUDE = ['Industry','Industry Total','PVT.','Private Total'];
+
+let currentYear = '2021-22';
+let tableData = [];
+let sortKey = 'claims_paid_ratio_no';
+let sortDir = -1;
+
+function getData(year) {
+  return RAW_DATA.filter(r => r.year === year && !EXCLUDE.includes(r.life_insurer));
+}
+
+// ======== YEAR SELECTOR ========
+function initYearSelector() {
+  const el = document.getElementById('yearSelector');
+  YEARS.forEach(y => {
+    const b = document.createElement('button');
+    b.className = 'year-btn' + (y === currentYear ? ' active' : '');
+    b.textContent = y;
+    b.onclick = () => setYear(y);
+    el.appendChild(b);
+  });
+}
+
+function setYear(y) {
+  currentYear = y;
+  document.querySelectorAll('.year-btn').forEach(b => b.classList.toggle('active', b.textContent === y));
+  document.getElementById('kpiYear').textContent = y;
+  document.getElementById('tableYear').textContent = y;
+  renderKPIs();
+  renderCharts();
+  renderTable();
+}
+
+// ======== KPIs ========
+function renderKPIs() {
+  const d = getData(currentYear);
+  const exclude_totals = d.filter(r => !['LIC','SBI Life'].includes(r.life_insurer) || true);
+  // industry totals from raw
+  const all = RAW_DATA.filter(r => r.year===currentYear);
+  const totalClaims = all.filter(r=>r.life_insurer==='Industry Total' || r.life_insurer==='Industry')[0];
+  
+  const totalInt = d.reduce((s,r)=>s+parseFloat(r.claims_intimated_no||0),0);
+  const totalPaid = d.reduce((s,r)=>s+parseFloat(r.claims_paid_no||0),0);
+  const avgRatio = d.length ? d.reduce((s,r)=>s+parseFloat(r.claims_paid_ratio_no||0),0)/d.length : 0;
+  const totalAmt = d.reduce((s,r)=>s+parseFloat(r.claims_paid_amt||0),0);
+  const best = d.sort((a,b)=>parseFloat(b.claims_paid_ratio_no)-parseFloat(a.claims_paid_ratio_no))[0];
+
+  const prev = getData(YEARS[YEARS.indexOf(currentYear)-1] || currentYear);
+  const prevRatio = prev.length ? prev.reduce((s,r)=>s+parseFloat(r.claims_paid_ratio_no||0),0)/prev.length : avgRatio;
+  const delta = ((avgRatio - prevRatio)*100).toFixed(2);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card c1">
+      <div class="stat-label">Claims Intimated</div>
+      <div class="stat-value">${(totalInt/1000).toFixed(1)}K</div>
+      <div class="stat-sub">Total claims filed</div>
+    </div>
+    <div class="stat-card c2">
+      <div class="stat-label">Avg Settlement Ratio</div>
+      <div class="stat-value">${(avgRatio*100).toFixed(1)}%</div>
+      <div class="stat-sub">${delta>=0?'▲':'▼'} ${Math.abs(delta)}% from prev year</div>
+      <div class="stat-trend ${delta>=0?'trend-up':'trend-dn'}">${delta>=0?'+':''}${delta}%</div>
+    </div>
+    <div class="stat-card c3">
+      <div class="stat-label">Total Paid Amount</div>
+      <div class="stat-value">₹${(totalAmt/1000).toFixed(1)}K</div>
+      <div class="stat-sub">Crores disbursed</div>
+    </div>
+    <div class="stat-card c4">
+      <div class="stat-label">Best Performer</div>
+      <div class="stat-value" style="font-size:20px">${getName(best.life_insurer)}</div>
+      <div class="stat-sub">${(parseFloat(best.claims_paid_ratio_no)*100).toFixed(2)}% settlement ratio</div>
+    </div>
+  `;
+}
+
+// ======== CHARTS ========
+let charts = {};
+
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts() {
+  const d = getData(currentYear);
+  const sorted = [...d].sort((a,b) => parseFloat(b.claims_paid_ratio_no) - parseFloat(a.claims_paid_ratio_no));
+  const top15 = sorted.slice(0,15);
+
+  // Colors
+  const colors = {
+    accent: '#00d4ff', accent2: '#ff6b35', accent3: '#39ff8f', accent4: '#c77dff',
+    muted: '#6a8fa8', bg: '#0d1826', border: '#1a2d47'
+  };
+  const chartDefaults = {
+    color: '#e8f4fd',
+    plugins: { legend: { labels: { color:'#6a8fa8', font:{ family:'Syne' } } } }
+  };
+
+  // 1. Settlement Ratio Bar
+  destroyChart('ratioChart');
+  charts.ratioChart = new Chart(document.getElementById('ratioChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: top15.map(r=>getName(r.life_insurer)),
+      datasets: [{
+        label:'Settlement Ratio %',
+        data: top15.map(r=>(parseFloat(r.claims_paid_ratio_no)*100).toFixed(2)),
+        backgroundColor: top15.map((r,i) => {
+          const v = parseFloat(r.claims_paid_ratio_no);
+          if(v >= 0.98) return colors.accent3;
+          if(v >= 0.95) return colors.accent;
+          return colors.accent2;
+        }),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.raw+'%'}} },
+      scales: {
+        x: { grid:{color:'rgba(26,45,71,0.5)'}, ticks:{color:colors.muted,font:{family:'JetBrains Mono'}}, min:80, max:100 },
+        y: { grid:{display:false}, ticks:{color:colors.accent,font:{family:'Syne',weight:'600'},font:{size:11}} }
+      }
+    }
+  });
+
+  // 2. Volume chart (top 12 by volume)
+  const byVol = [...d].sort((a,b) => parseFloat(b.claims_intimated_no) - parseFloat(a.claims_intimated_no)).slice(0,12);
+  destroyChart('volumeChart');
+  charts.volumeChart = new Chart(document.getElementById('volumeChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: byVol.map(r=>getName(r.life_insurer)),
+      datasets: [
+        { label:'Intimated', data:byVol.map(r=>parseInt(r.claims_intimated_no)), backgroundColor:'rgba(0,212,255,0.25)', borderColor:colors.accent, borderWidth:1, borderRadius:3 },
+        { label:'Paid', data:byVol.map(r=>parseInt(r.claims_paid_no)), backgroundColor:'rgba(57,255,143,0.25)', borderColor:colors.accent3, borderWidth:1, borderRadius:3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{labels:{color:colors.muted,font:{family:'Syne'}}} },
+      scales: {
+        x: { grid:{display:false}, ticks:{color:colors.muted,font:{size:10}} },
+        y: { grid:{color:'rgba(26,45,71,0.5)'}, ticks:{color:colors.muted,font:{family:'JetBrains Mono',size:10}} }
+      }
+    }
+  });
+
+  // 3. Trend chart (avg ratio by year)
+  const trendData = YEARS.map(y => {
+    const yd = getData(y);
+    const avg = yd.length ? yd.reduce((s,r)=>s+parseFloat(r.claims_paid_ratio_no||0),0)/yd.length : 0;
+    return (avg*100).toFixed(2);
+  });
+  destroyChart('trendChart');
+  charts.trendChart = new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: YEARS,
+      datasets: [{
+        label:'Avg Settlement Ratio %',
+        data: trendData,
+        borderColor:colors.accent, backgroundColor:'rgba(0,212,255,0.08)',
+        pointBackgroundColor:colors.accent, pointRadius:5, fill:true, tension:0.4
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false} },
+      scales: {
+        x: { grid:{display:false}, ticks:{color:colors.muted} },
+        y: { grid:{color:'rgba(26,45,71,0.5)'}, ticks:{color:colors.muted,font:{family:'JetBrains Mono'},callback:v=>v+'%'}, min:90, max:100 }
+      }
+    }
+  });
+
+  // 4. Pie chart
+  const totInt = d.reduce((s,r)=>s+parseFloat(r.claims_intimated_no||0),0);
+  const totPaid = d.reduce((s,r)=>s+parseFloat(r.claims_paid_no||0),0);
+  const totRepu = d.reduce((s,r)=>s+parseFloat(r.claims_repudiated_no||0),0);
+  const totRej = d.reduce((s,r)=>s+parseFloat(r.claims_rejected_no||0),0);
+  const totPend = d.reduce((s,r)=>s+parseFloat(r.claims_pending_end_no||0),0);
+  destroyChart('pieChart');
+  charts.pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+    type:'doughnut',
+    data: {
+      labels:['Paid','Repudiated','Rejected','Pending'],
+      datasets:[{ data:[totPaid,totRepu,totRej,totPend].map(v=>v.toFixed(0)),
+        backgroundColor:['rgba(57,255,143,0.7)','rgba(255,107,53,0.7)','rgba(199,125,255,0.7)','rgba(0,212,255,0.3)'],
+        borderColor:['#39ff8f','#ff6b35','#c77dff','#00d4ff'], borderWidth:1.5 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins: { legend:{position:'bottom',labels:{color:colors.muted,font:{family:'Syne'},padding:12}} }
+    }
+  });
+
+  // 5. Repudiation rate bar
+  const repuSorted = [...d].sort((a,b)=>parseFloat(b.claims_repudiated_rejected_ratio_no)-parseFloat(a.claims_repudiated_rejected_ratio_no)).slice(0,12);
+  destroyChart('repuChart');
+  charts.repuChart = new Chart(document.getElementById('repuChart').getContext('2d'), {
+    type:'bar',
+    data: {
+      labels: repuSorted.map(r=>getName(r.life_insurer)),
+      datasets:[{ label:'Repudiation %', data:repuSorted.map(r=>(parseFloat(r.claims_repudiated_rejected_ratio_no)*100).toFixed(2)),
+        backgroundColor:'rgba(255,107,53,0.4)', borderColor:colors.accent2, borderWidth:1, borderRadius:3 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:colors.muted,font:{size:10}}},
+        y:{grid:{color:'rgba(26,45,71,0.5)'},ticks:{color:colors.muted,font:{family:'JetBrains Mono',size:10},callback:v=>v+'%'}}
+      }
+    }
+  });
+
+  // 6. YoY line chart for top 8 by 2021-22 claims paid amount
+  const top8 = [...getData('2021-22')].sort((a,b)=>parseFloat(b.claims_paid_amt)-parseFloat(a.claims_paid_amt)).slice(0,8);
+  const palette = ['#00d4ff','#39ff8f','#ff6b35','#c77dff','#ffdd57','#ff69b4','#4fc3f7','#aed581'];
+  destroyChart('yoyChart');
+  charts.yoyChart = new Chart(document.getElementById('yoyChart').getContext('2d'), {
+    type:'line',
+    data: {
+      labels: YEARS,
+      datasets: top8.map((ins,i) => {
+        const ins_data = YEARS.map(y => {
+          const row = RAW_DATA.find(r=>r.life_insurer===ins.life_insurer && r.year===y);
+          return row ? parseFloat(row.claims_paid_amt).toFixed(1) : null;
+        });
+        return {
+          label: getName(ins.life_insurer), data: ins_data,
+          borderColor:palette[i], backgroundColor:'transparent',
+          pointBackgroundColor:palette[i], borderWidth:2, tension:0.3, pointRadius:4
+        };
+      })
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:colors.muted,font:{family:'Syne',size:11}}}},
+      scales:{
+        x:{grid:{color:'rgba(26,45,71,0.3)'},ticks:{color:colors.muted}},
+        y:{grid:{color:'rgba(26,45,71,0.3)'},ticks:{color:colors.muted,font:{family:'JetBrains Mono',size:10},callback:v=>'₹'+v}}
+      }
+    }
+  });
+}
+
+// ======== TABLE ========
+function renderTable() {
+  tableData = getData(currentYear);
+  displayTable(tableData);
+}
+
+function displayTable(data) {
+  const s = [...data].sort((a,b) => {
+    const va = parseFloat(a[sortKey])||0, vb = parseFloat(b[sortKey])||0;
+    if(sortKey==='life_insurer') return sortDir*(a[sortKey]||'').localeCompare(b[sortKey]||'');
+    return sortDir*(vb-va);
+  });
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = s.map((r,i) => {
+    const ratio = parseFloat(r.claims_paid_ratio_no||0);
+    const barColor = ratio>=0.98 ? '#39ff8f' : ratio>=0.95 ? '#00d4ff' : '#ff6b35';
+    return `
+    <tr>
+      <td><span class="insurer-name">${getName(r.life_insurer)}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px">${num(r.total_claims_no)}</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px">${num(r.claims_paid_no)}</span></td>
+      <td>
+        <div class="ratio-bar">
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(ratio*100,100)}%;background:${barColor}"></div></div>
+          <span class="ratio-num" style="color:${barColor}">${(ratio*100).toFixed(1)}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${parseFloat(r.claims_repudiated_rejected_ratio_no||0)<0.05?'badge-good':'badge-warn'}">${(parseFloat(r.claims_repudiated_rejected_ratio_no||0)*100).toFixed(1)}%</span></td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#e8f4fd">${crore(r.claims_paid_amt)}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function sortTable(key) {
+  if(sortKey===key) sortDir *= -1;
+  else { sortKey=key; sortDir=-1; }
+  const search = document.getElementById('tableSearch').value.toLowerCase();
+  const filtered = search ? tableData.filter(r=>getName(r.life_insurer).toLowerCase().includes(search)) : tableData;
+  displayTable(filtered);
+}
+
+function filterTable() {
+  const q = document.getElementById('tableSearch').value.toLowerCase();
+  displayTable(tableData.filter(r=>getName(r.life_insurer).toLowerCase().includes(q)));
+}
+
+// ======== AI CHAT ========
+const QUICK_PROMPTS = [
+  'Best settlement ratios 2021-22?',
+  'How has LIC performed over 5 years?',
+  'Which insurer repudiates most claims?',
+  'Total claims paid amount trend?',
+  'Compare SBI Life vs HDFC Life',
+  'Top 5 by volume?',
+];
+
+function initChat() {
+  const qpEl = document.getElementById('quickPrompts');
+  QUICK_PROMPTS.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'qp'; b.textContent = p;
+    b.onclick = () => { document.getElementById('chatInput').value = p; sendMessage(); };
+    qpEl.appendChild(b);
+  });
+
+  addMsg('ai', `Hello! I'm your AI analyst for India's Life Insurance Claims data (2017–2022). I can answer questions about settlement ratios, claim volumes, insurer performance, and trends. What would you like to know?`);
+
+  document.getElementById('chatInput').addEventListener('keydown', e => {
+    if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+}
+
+function addMsg(role, content, isHTML=false) {
+  const el = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="msg-avatar ${role}">${role==='ai'?'⚡':'U'}</div>
+    <div class="msg-bubble">${isHTML ? content : content}</div>
+  `;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function addTyping() {
+  const el = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ai'; div.id = 'typingMsg';
+  div.innerHTML = `<div class="msg-avatar ai">⚡</div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typingMsg'); if(t) t.remove();
+}
+
+async function sendMessage() {
+  const inp = document.getElementById('chatInput');
+  const q = inp.value.trim();
+  if(!q) return;
+  inp.value = '';
+  document.getElementById('sendBtn').disabled = true;
+
+  addMsg('user', q);
+  addTyping();
+
+  // Build context for AI
+  const latest = getData('2021-22');
+  const topRatio = [...latest].sort((a,b)=>parseFloat(b.claims_paid_ratio_no)-parseFloat(a.claims_paid_ratio_no)).slice(0,5);
+  const topVol = [...latest].sort((a,b)=>parseFloat(b.claims_intimated_no)-parseFloat(a.claims_intimated_no)).slice(0,5);
+
+  const context = `
+You are an expert AI analyst for India Life Insurance Claims data from IRDAI (2017-2022). 
+Dataset: Individual Death Claims for 24 life insurers across 5 years (2017-18 to 2021-22).
+Key columns: claims_paid_ratio_no (settlement ratio), claims_intimated_no (total claims), claims_paid_no, claims_paid_amt (₹ crore), claims_repudiated_no, claims_pending_ratio_no.
+
+CURRENT DATA SUMMARY (2021-22):
+Top 5 by settlement ratio: ${topRatio.map(r=>`${getName(r.life_insurer)}: ${(parseFloat(r.claims_paid_ratio_no)*100).toFixed(1)}%`).join(', ')}
+Top 5 by volume: ${topVol.map(r=>`${getName(r.life_insurer)}: ${parseInt(r.claims_intimated_no).toLocaleString()}`).join(', ')}
+LIC settlement ratio 2021-22: ${(parseFloat((getData('2021-22').find(r=>r.life_insurer==='LIC')||{claims_paid_ratio_no:0}).claims_paid_ratio_no)*100).toFixed(1)}%
+
+ALL DATA (JSON): ${JSON.stringify(RAW_DATA.filter(r=>!EXCLUDE.includes(r.life_insurer)))}
+
+Answer the user's question concisely and insightfully. Use specific numbers. Be analytical and helpful. 
+Format nicely but keep it short (max 3-4 sentences). Highlight key numbers.
+`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: context,
+        messages:[{role:'user',content:q}]
+      })
+    });
+    const data = await resp.json();
+    removeTyping();
+    const text = data.content?.map(c=>c.text||'').join('') || 'I could not generate a response.';
+    addMsg('ai', text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>'), true);
+  } catch(e) {
+    removeTyping();
+    // Fallback: answer from data directly
+    const ans = localAnswer(q);
+    addMsg('ai', ans, true);
+  }
+
+  document.getElementById('sendBtn').disabled = false;
+}
+
+// Local fallback answering
+function localAnswer(q) {
+  const ql = q.toLowerCase();
+  const latest = getData('2021-22');
+  
+  if(ql.includes('best') || ql.includes('highest') || ql.includes('top')) {
+    const top5 = [...latest].sort((a,b)=>parseFloat(b.claims_paid_ratio_no)-parseFloat(a.claims_paid_ratio_no)).slice(0,5);
+    return `<strong>Top 5 Settlement Ratios (2021-22):</strong><div class="stat-inline">${top5.map(r=>`<span>${getName(r.life_insurer)}: ${(parseFloat(r.claims_paid_ratio_no)*100).toFixed(1)}%</span>`).join('')}</div>`;
+  }
+  if(ql.includes('lic')) {
+    const licData = YEARS.map(y=>RAW_DATA.find(r=>r.life_insurer==='LIC'&&r.year===y)).filter(Boolean);
+    return `<strong>LIC Performance:</strong><div class="stat-inline">${licData.map(r=>`<span>${r.year}: ${(parseFloat(r.claims_paid_ratio_no)*100).toFixed(1)}%</span>`).join('')}</div>`;
+  }
+  if(ql.includes('repudiat') || ql.includes('reject')) {
+    const topRepu = [...latest].sort((a,b)=>parseFloat(b.claims_repudiated_rejected_ratio_no)-parseFloat(a.claims_repudiated_rejected_ratio_no)).slice(0,5);
+    return `<strong>Highest Repudiation Rates (2021-22):</strong><div class="stat-inline">${topRepu.map(r=>`<span>${getName(r.life_insurer)}: ${(parseFloat(r.claims_repudiated_rejected_ratio_no)*100).toFixed(1)}%</span>`).join('')}</div>`;
+  }
+  return `Based on the data, here are the key 2021-22 highlights: The average settlement ratio across all insurers is <strong>${(latest.reduce((s,r)=>s+parseFloat(r.claims_paid_ratio_no||0),0)/latest.length*100).toFixed(1)}%</strong>. Total claims intimated: <strong>${latest.reduce((s,r)=>s+parseInt(r.claims_intimated_no||0),0).toLocaleString('en-IN')}</strong>. Use the charts and table below for detailed analysis.`;
+}
+
+// ======== INIT ========
+window.onload = () => {
+  Chart.defaults.color = '#6a8fa8';
+  initYearSelector();
+  renderKPIs();
+  renderCharts();
+  renderTable();
+  initChat();
+};
+</script>
+</body>
+</html>

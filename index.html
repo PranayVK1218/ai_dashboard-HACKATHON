@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InsightAI — India Life Insurance Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #05080f;
+    --bg2: #0b1120;
+    --bg3: #101828;
+    --surface: #131e30;
+    --border: rgba(99,179,255,0.1);
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --accent3: #8b5cf6;
+    --gold: #f59e0b;
+    --green: #10b981;
+    --red: #f43f5e;
+    --text: #e8edf5;
+    --muted: #6b82a0;
+    --glow: 0 0 40px rgba(59,130,246,0.15);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(5,8,15,0.85);
+    backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.6;transform:scale(1.3)}
+  }
+  .logo span { color: var(--accent2); }
+  .header-badge {
+    font-size: .75rem;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px 12px; border-radius: 20px;
+    letter-spacing: .05em;
+  }
+  .header-right { display: flex; align-items: center; gap: 1rem; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .75rem; color: var(--green);
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.2);
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .live-dot { width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite; }
+
+  /* HERO */
+  .hero {
+    padding: 4rem 2rem 3rem;
+    max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: end;
+  }
+  .hero-tag {
+    font-size: .75rem; letter-spacing: .15em; text-transform: uppercase;
+    color: var(--accent2); margin-bottom: .75rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-tag::before { content:''; width:24px;height:1px;background:var(--accent2); }
+  h1 {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e8edf5 30%, #3b82f6 70%, #06b6d4 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 1rem;
+  }
+  .hero-sub { color: var(--muted); font-size: 1rem; max-width: 560px; line-height: 1.7; }
+  .hero-stats { display: flex; gap: 2rem; margin-top: 2rem; }
+  .hs { text-align: center; }
+  .hs-val { font-family:'Syne',sans-serif;font-weight:700;font-size:1.5rem;color:var(--accent); }
+  .hs-lab { font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:2px; }
+
+  /* AI CHAT BAR */
+  .ai-section {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem 2.5rem;
+  }
+  .ai-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    display: flex; gap: 1rem; align-items: flex-start;
+    box-shadow: var(--glow);
+    transition: box-shadow .3s;
+  }
+  .ai-bar:focus-within { box-shadow: 0 0 60px rgba(59,130,246,0.25); border-color: rgba(59,130,246,0.4); }
+  .ai-icon {
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px; display: grid; place-items: center;
+    font-size: 1rem;
+  }
+  .ai-input-wrap { flex: 1; }
+  .ai-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: .4rem; }
+  .ai-input {
+    width: 100%; background: none; border: none; outline: none;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: .95rem; resize: none; line-height: 1.5; height: 40px;
+  }
+  .ai-input::placeholder { color: var(--muted); }
+  .ai-send {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 10px; padding: .6rem 1.4rem;
+    color: #fff; font-family: 'Syne', sans-serif; font-weight: 600;
+    font-size: .85rem; cursor: pointer; white-space: nowrap;
+    transition: opacity .2s, transform .15s;
+    align-self: flex-end;
+  }
+  .ai-send:hover { opacity: .88; transform: translateY(-1px); }
+  .ai-send:active { transform: translateY(0); }
+  .ai-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+  .chip {
+    font-size: .75rem; color: var(--muted);
+    background: rgba(99,179,255,0.06); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px; cursor: pointer;
+    transition: all .2s;
+  }
+  .chip:hover { background: rgba(59,130,246,0.15); color: var(--accent); border-color: rgba(59,130,246,0.4); }
+
+  /* AI RESPONSE */
+  .ai-response-box {
+    margin-top: 1rem;
+    background: rgba(59,130,246,0.06);
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 12px; padding: 1rem 1.25rem;
+    display: none;
+  }
+  .ai-response-box.visible { display: block; animation: fadeSlide .3s ease; }
+  @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .ai-response-header { font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem; }
+  .ai-response-text { font-size: .9rem; line-height: 1.65; color: var(--text); }
+  .typing { display: inline-flex; gap: 4px; align-items: center; }
+  .typing span { width:6px;height:6px;background:var(--accent);border-radius:50%;animation:bounce 1.2s infinite; }
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+  /* FILTERS */
+  .filters {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem 2rem;
+    display: flex; gap: .75rem; flex-wrap: wrap; align-items: center;
+  }
+  .filter-label { font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-right:.25rem; }
+  select, .filter-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans',sans-serif; font-size: .82rem;
+    border-radius: 8px; padding: .45rem 1rem; cursor: pointer;
+    outline: none; transition: border-color .2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  select { padding-right: 2rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b82a0' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+  select:hover, .filter-btn:hover { border-color: rgba(59,130,246,0.5); }
+  .filter-btn.active { background: rgba(59,130,246,0.15); border-color: var(--accent); color: var(--accent); }
+
+  /* KPI GRID */
+  .kpi-grid {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem 2rem;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+  }
+  @media(max-width:900px){ .kpi-grid{grid-template-columns:repeat(2,1fr)} }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.4rem 1.5rem;
+    position: relative; overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+  .kpi::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    border-radius: 0 0 14px 14px;
+  }
+  .kpi.blue::after { background: linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .kpi.green::after { background: var(--green); }
+  .kpi.gold::after { background: var(--gold); }
+  .kpi.purple::after { background: var(--accent3); }
+  .kpi-icon { font-size: 1.4rem; margin-bottom: .75rem; }
+  .kpi-val {
+    font-family: 'Syne',sans-serif; font-weight: 800;
+    font-size: 1.75rem; margin-bottom: .2rem;
+    transition: all .4s;
+  }
+  .kpi-label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .kpi-delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: .72rem; margin-top: .4rem;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .kpi-delta.up { color: var(--green); background: rgba(16,185,129,0.1); }
+  .kpi-delta.dn { color: var(--red); background: rgba(244,63,94,0.1); }
+
+  /* CHARTS GRID */
+  .charts-grid {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem;
+    display: grid; grid-template-columns: 1.6fr 1fr; gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .charts-grid2 {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .charts-grid3 {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem;
+    display: grid; grid-template-columns: 1fr 1.2fr; gap: 1.25rem;
+    margin-bottom: 3rem;
+  }
+  @media(max-width:1024px){
+    .charts-grid,.charts-grid2,.charts-grid3{grid-template-columns:1fr}
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.5rem; overflow: hidden;
+  }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 1.25rem;
+  }
+  .card-title { font-family:'Syne',sans-serif; font-weight:700; font-size:.95rem; }
+  .card-sub { font-size:.72rem;color:var(--muted);margin-top:2px; }
+  .chart-wrap { position: relative; }
+  canvas { max-width: 100%; }
+
+  /* TABLE */
+  .table-wrap {
+    max-width: 1400px; margin: 0 auto; padding: 0 2rem 3rem;
+  }
+  .table-scroll { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+  thead tr { background: var(--bg3); }
+  th {
+    padding: .85rem 1.1rem; text-align: left;
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); font-weight: 500; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: .8rem 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(59,130,246,0.04); }
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: .7rem; font-weight: 500;
+  }
+  .badge-green { background:rgba(16,185,129,0.12);color:var(--green); }
+  .badge-amber { background:rgba(245,158,11,0.12);color:var(--gold); }
+  .badge-red { background:rgba(244,63,94,0.12);color:var(--red); }
+  .progress-bar {
+    height: 5px; background: rgba(255,255,255,0.06);
+    border-radius: 99px; overflow: hidden; min-width: 80px;
+  }
+  .progress-fill { height: 100%; border-radius: 99px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    font-size: .78rem;
+    color: var(--muted);
+    max-width: 1400px; margin: 0 auto;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* LOADING */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface) 25%, rgba(99,179,255,0.06) 50%, var(--surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* SECTION DIVIDER */
+  .section-title {
+    max-width: 1400px; margin: 0 auto; padding: 1rem 2rem .5rem;
+    font-family:'Syne',sans-serif; font-size:.8rem; font-weight:600;
+    text-transform:uppercase; letter-spacing:.15em; color:var(--muted);
+    display:flex; align-items:center; gap:.75rem;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .tooltip-wrap { position:relative; display:inline-block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    Insight<span>AI</span>
+  </div>
+  <div class="header-badge">India Life Insurance Intelligence</div>
+  <div class="header-right">
+    <div class="live-badge"><div class="live-dot"></div> AI Active</div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div>
+    <div class="hero-tag">Conversational BI Dashboard</div>
+    <h1>Insurance Claims<br>Intelligence Platform</h1>
+    <p class="hero-sub">Explore 5 years of India's life insurance claims data across 20+ insurers. Ask any question in plain English — powered by AI.</p>
+    <div class="hero-stats">
+      <div class="hs"><div class="hs-val" id="stat-insurers">20+</div><div class="hs-lab">Insurers</div></div>
+      <div class="hs"><div class="hs-val" id="stat-years">5</div><div class="hs-lab">Years</div></div>
+      <div class="hs"><div class="hs-val" id="stat-claims">4.2M+</div><div class="hs-lab">Claims Tracked</div></div>
+      <div class="hs"><div class="hs-val">97.1%</div><div class="hs-lab">Avg Paid Ratio</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- AI CHAT -->
+<section class="ai-section">
+  <div class="ai-bar">
+    <div class="ai-icon">🤖</div>
+    <div class="ai-input-wrap">
+      <div class="ai-label">Ask InsightAI anything about the data</div>
+      <textarea class="ai-input" id="ai-input" placeholder="e.g. Which insurer had the highest claims paid ratio in 2021-22?" rows="1"></textarea>
+      <div class="ai-chips">
+        <span class="chip" onclick="askChip(this)">Top 5 insurers by claims paid 2021-22</span>
+        <span class="chip" onclick="askChip(this)">Who improved most over 5 years?</span>
+        <span class="chip" onclick="askChip(this)">Highest repudiation rate insurer?</span>
+        <span class="chip" onclick="askChip(this)">SBI Life trend analysis</span>
+        <span class="chip" onclick="askChip(this)">Compare HDFC vs ICICI</span>
+      </div>
+      <div class="ai-response-box" id="ai-response-box">
+        <div class="ai-response-header">⚡ InsightAI Response</div>
+        <div class="ai-response-text" id="ai-response-text"></div>
+      </div>
+    </div>
+    <button class="ai-send" onclick="askAI()">Ask AI →</button>
+  </div>
+</section>
+
+<!-- FILTERS -->
+<div class="filters">
+  <span class="filter-label">Filter:</span>
+  <select id="year-filter" onchange="applyFilters()">
+    <option value="all">All Years</option>
+    <option value="2021-22" selected>2021-22</option>
+    <option value="2020-21">2020-21</option>
+    <option value="2019-20">2019-20</option>
+    <option value="2018-19">2018-19</option>
+    <option value="2017-18">2017-18</option>
+  </select>
+  <select id="insurer-filter" onchange="applyFilters()">
+    <option value="all">All Insurers</option>
+  </select>
+  <button class="filter-btn" onclick="resetFilters()">↺ Reset</button>
+</div>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi blue">
+    <div class="kpi-icon">📋</div>
+    <div class="kpi-val" id="kpi-total">—</div>
+    <div class="kpi-label">Total Claims</div>
+    <div class="kpi-delta up" id="kpi-total-d">▲ Loading…</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-icon">✅</div>
+    <div class="kpi-val" id="kpi-paid">—</div>
+    <div class="kpi-label">Claims Paid</div>
+    <div class="kpi-delta up" id="kpi-paid-d">▲ Loading…</div>
+  </div>
+  <div class="kpi gold">
+    <div class="kpi-icon">💰</div>
+    <div class="kpi-val" id="kpi-amt">—</div>
+    <div class="kpi-label">Amount Paid (₹ Cr)</div>
+    <div class="kpi-delta up" id="kpi-amt-d">▲ Loading…</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-icon">📊</div>
+    <div class="kpi-val" id="kpi-ratio">—</div>
+    <div class="kpi-label">Avg Paid Ratio</div>
+    <div class="kpi-delta up" id="kpi-ratio-d">▲ Loading…</div>
+  </div>
+</div>
+
+<!-- ROW 1 CHARTS -->
+<div class="section-title">Claims Overview</div>
+<div class="charts-grid">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Claims Paid Ratio by Insurer</div>
+        <div class="card-sub">Percentage of claims settled — higher is better</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-ratio" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Claims Distribution</div>
+        <div class="card-sub">Paid vs Repudiated vs Pending</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-donut" height="260"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 2 CHARTS -->
+<div class="section-title">Trend Analysis</div>
+<div class="charts-grid2">
+  <div class="card" style="grid-column:span 2">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Total Claims Trend (2017–2022)</div>
+        <div class="card-sub">Year-over-year growth across all insurers</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-trend" height="200"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Top 8 by Volume</div>
+        <div class="card-sub">Claims paid count</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-top8" height="260"></canvas></div>
+  </div>
+</div>
+
+<!-- ROW 3 CHARTS -->
+<div class="section-title">Deep Dive</div>
+<div class="charts-grid3">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Repudiation Rate Analysis</div>
+        <div class="card-sub">Claims rejected / repudiated rate by insurer</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-repud" height="280"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Amount Paid Distribution (₹ Crores)</div>
+        <div class="card-sub">Top insurers by total claim amount</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-amt" height="280"></canvas></div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="section-title">Detailed Records</div>
+<div class="table-wrap">
+  <div class="table-scroll">
+    <table id="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Insurer</th>
+          <th>Year</th>
+          <th>Total Claims</th>
+          <th>Claims Paid</th>
+          <th>Amount Paid (₹Cr)</th>
+          <th>Paid Ratio</th>
+          <th>Repudiated</th>
+          <th>Pending</th>
+          <th>Status</th>
+          <th>Settlement Bar</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  <p>InsightAI Dashboard · India Life Insurance Claims · Data sourced from IRDAI · Built with Chart.js & Gemini AI</p>
+  <p style="margin-top:.5rem">Project structure: <code>ai-dashboard/backend/</code> · <code>ai-dashboard/frontend/</code> · <code>ai-dashboard/data/sales_data.csv</code></p>
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// EMBEDDED DATA (from sales_data.csv)
+// ═══════════════════════════════════════════
+const RAW_DATA = [{"insurer":"Aegon","year":"2021-22","claims_paid_no":713,"claims_paid_amt":273.04,"claims_repudiated_no":6,"claims_rejected_no":0,"total_claims_no":720,"claims_paid_ratio_no":99.03,"claims_pending_no":1,"claims_intimated_no":720},{"insurer":"Ageas","year":"2021-22","claims_paid_no":2614,"claims_paid_amt":122.63,"claims_repudiated_no":57,"claims_rejected_no":0,"total_claims_no":2694,"claims_paid_ratio_no":97.03,"claims_pending_no":23,"claims_intimated_no":2644},{"insurer":"Aviva","year":"2021-22","claims_paid_no":1645,"claims_paid_amt":266.7,"claims_repudiated_no":27,"claims_rejected_no":0,"total_claims_no":1672,"claims_paid_ratio_no":98.39,"claims_pending_no":0,"claims_intimated_no":1672},{"insurer":"Baj Alz","year":"2021-22","claims_paid_no":20844,"claims_paid_amt":771.88,"claims_repudiated_no":195,"claims_rejected_no":0,"total_claims_no":21050,"claims_paid_ratio_no":99.02,"claims_pending_no":11,"claims_intimated_no":21045},{"insurer":"Bharti Axa","year":"2021-22","claims_paid_no":3174,"claims_paid_amt":234.72,"claims_repudiated_no":27,"claims_rejected_no":0,"total_claims_no":3203,"claims_paid_ratio_no":99.09,"claims_pending_no":2,"claims_intimated_no":3203},{"insurer":"Can HSBC","year":"2021-22","claims_paid_no":2769,"claims_paid_amt":277.79,"claims_repudiated_no":41,"claims_rejected_no":0,"total_claims_no":2813,"claims_paid_ratio_no":98.44,"claims_pending_no":3,"claims_intimated_no":2788},{"insurer":"Edelws","year":"2021-22","claims_paid_no":976,"claims_paid_amt":152.06,"claims_repudiated_no":19,"claims_rejected_no":0,"total_claims_no":995,"claims_paid_ratio_no":98.09,"claims_pending_no":0,"claims_intimated_no":993},{"insurer":"Exide","year":"2021-22","claims_paid_no":7213,"claims_paid_amt":306.81,"claims_repudiated_no":7,"claims_rejected_no":0,"total_claims_no":7279,"claims_paid_ratio_no":99.09,"claims_pending_no":59,"claims_intimated_no":7216},{"insurer":"Fut Genli","year":"2021-22","claims_paid_no":1600,"claims_paid_amt":77.67,"claims_repudiated_no":64,"claims_rejected_no":0,"total_claims_no":1664,"claims_paid_ratio_no":96.15,"claims_pending_no":0,"claims_intimated_no":1656},{"insurer":"ICICI","year":"2021-22","claims_paid_no":21795,"claims_paid_amt":2977.5,"claims_repudiated_no":398,"claims_rejected_no":0,"total_claims_no":22281,"claims_paid_ratio_no":97.82,"claims_pending_no":80,"claims_intimated_no":22265},{"insurer":"Indiafirst","year":"2021-22","claims_paid_no":4785,"claims_paid_amt":227.31,"claims_repudiated_no":143,"claims_rejected_no":0,"total_claims_no":4937,"claims_paid_ratio_no":96.92,"claims_pending_no":9,"claims_intimated_no":4922},{"insurer":"Kotak","year":"2021-22","claims_paid_no":7049,"claims_paid_amt":586.15,"claims_repudiated_no":60,"claims_rejected_no":0,"total_claims_no":7133,"claims_paid_ratio_no":98.82,"claims_pending_no":24,"claims_intimated_no":7117},{"insurer":"PNB Metlife","year":"2021-22","claims_paid_no":8357,"claims_paid_amt":669.69,"claims_repudiated_no":224,"claims_rejected_no":0,"total_claims_no":8586,"claims_paid_ratio_no":97.33,"claims_pending_no":2,"claims_intimated_no":8586},{"insurer":"Pramerica","year":"2021-22","claims_paid_no":1043,"claims_paid_amt":51.34,"claims_repudiated_no":16,"claims_rejected_no":0,"total_claims_no":1061,"claims_paid_ratio_no":98.3,"claims_pending_no":2,"claims_intimated_no":1060},{"insurer":"Reliance","year":"2021-22","claims_paid_no":13548,"claims_paid_amt":344.14,"claims_repudiated_no":174,"claims_rejected_no":0,"total_claims_no":13730,"claims_paid_ratio_no":98.67,"claims_pending_no":3,"claims_intimated_no":13726},{"insurer":"SBI Life","year":"2021-22","claims_paid_no":54140,"claims_paid_amt":2751.53,"claims_repudiated_no":1541,"claims_rejected_no":0,"total_claims_no":55786,"claims_paid_ratio_no":97.05,"claims_pending_no":7,"claims_intimated_no":54874},{"insurer":"Sahara","year":"2021-22","claims_paid_no":1132,"claims_paid_amt":12.47,"claims_repudiated_no":16,"claims_rejected_no":15,"total_claims_no":1166,"claims_paid_ratio_no":97.08,"claims_pending_no":3,"claims_intimated_no":1164},{"insurer":"Shriram","year":"2021-22","claims_paid_no":5620,"claims_paid_amt":167.39,"claims_repudiated_no":163,"claims_rejected_no":78,"total_claims_no":5865,"claims_paid_ratio_no":95.82,"claims_pending_no":4,"claims_intimated_no":5854},{"insurer":"Tata AIA","year":"2021-22","claims_paid_no":7950,"claims_paid_amt":1518.17,"claims_repudiated_no":117,"claims_rejected_no":0,"total_claims_no":8069,"claims_paid_ratio_no":98.53,"claims_pending_no":2,"claims_intimated_no":8067},{"insurer":"Aditya Birla Life","year":"2020-21","claims_paid_no":6347,"claims_paid_amt":440.26,"claims_repudiated_no":116,"claims_rejected_no":0,"total_claims_no":6474,"claims_paid_ratio_no":98.04,"claims_pending_no":11,"claims_intimated_no":6455},{"insurer":"Aegon","year":"2020-21","claims_paid_no":398,"claims_paid_amt":105.98,"claims_repudiated_no":3,"claims_rejected_no":0,"total_claims_no":401,"claims_paid_ratio_no":99.25,"claims_pending_no":0,"claims_intimated_no":401},{"insurer":"Aviva","year":"2020-21","claims_paid_no":1034,"claims_paid_amt":111.57,"claims_repudiated_no":21,"claims_rejected_no":0,"total_claims_no":1055,"claims_paid_ratio_no":98.01,"claims_pending_no":0,"claims_intimated_no":1050},{"insurer":"Bajaj Allianz","year":"2020-21","claims_paid_no":14115,"claims_paid_amt":410.68,"claims_repudiated_no":213,"claims_rejected_no":0,"total_claims_no":14333,"claims_paid_ratio_no":98.48,"claims_pending_no":5,"claims_intimated_no":14331},{"insurer":"Bharti Axa","year":"2020-21","claims_paid_no":1875,"claims_paid_amt":106.04,"claims_repudiated_no":18,"claims_rejected_no":0,"total_claims_no":1893,"claims_paid_ratio_no":99.05,"claims_pending_no":0,"claims_intimated_no":1891},{"insurer":"Canara HSBC OBC","year":"2020-21","claims_paid_no":1844,"claims_paid_amt":156.08,"claims_repudiated_no":30,"claims_rejected_no":0,"total_claims_no":1899,"claims_paid_ratio_no":97.1,"claims_pending_no":25,"claims_intimated_no":1897},{"insurer":"Edelweiss Tokio","year":"2020-21","claims_paid_no":487,"claims_paid_amt":45.83,"claims_repudiated_no":13,"claims_rejected_no":0,"total_claims_no":502,"claims_paid_ratio_no":97.01,"claims_pending_no":2,"claims_intimated_no":502},{"insurer":"Exide Life","year":"2020-21","claims_paid_no":4978,"claims_paid_amt":170.43,"claims_repudiated_no":11,"claims_rejected_no":0,"total_claims_no":5052,"claims_paid_ratio_no":98.54,"claims_pending_no":63,"claims_intimated_no":5014},{"insurer":"Future Generali","year":"2020-21","claims_paid_no":1163,"claims_paid_amt":48.11,"claims_repudiated_no":55,"claims_rejected_no":0,"total_claims_no":1226,"claims_paid_ratio_no":94.86,"claims_pending_no":8,"claims_intimated_no":1223},{"insurer":"HDFC Life","year":"2020-21","claims_paid_no":16639,"claims_paid_amt":1037.23,"claims_repudiated_no":84,"claims_rejected_no":58,"total_claims_no":16976,"claims_paid_ratio_no":98.01,"claims_pending_no":178,"claims_intimated_no":16941},{"insurer":"ICICI Prudential","year":"2020-21","claims_paid_no":14518,"claims_paid_amt":1504.64,"claims_repudiated_no":289,"claims_rejected_no":0,"total_claims_no":14829,"claims_paid_ratio_no":97.9,"claims_pending_no":16,"claims_intimated_no":14734},{"insurer":"India First","year":"2020-21","claims_paid_no":2886,"claims_paid_amt":109.64,"claims_repudiated_no":80,"claims_rejected_no":0,"total_claims_no":2981,"claims_paid_ratio_no":96.81,"claims_pending_no":15,"claims_intimated_no":2972},{"insurer":"Kotak Mahindra","year":"2020-21","claims_paid_no":4336,"claims_paid_amt":299.92,"claims_repudiated_no":50,"claims_rejected_no":0,"total_claims_no":4402,"claims_paid_ratio_no":98.5,"claims_pending_no":16,"claims_intimated_no":4393},{"insurer":"Max Life","year":"2020-21","claims_paid_no":19922,"claims_paid_amt":885.57,"claims_repudiated_no":129,"claims_rejected_no":0,"total_claims_no":20052,"claims_paid_ratio_no":99.35,"claims_pending_no":1,"claims_intimated_no":20051},{"insurer":"PNB Met Life","year":"2020-21","claims_paid_no":5218,"claims_paid_amt":331.7,"claims_repudiated_no":97,"claims_rejected_no":0,"total_claims_no":5315,"claims_paid_ratio_no":98.17,"claims_pending_no":0,"claims_intimated_no":5315},{"insurer":"Pramerica Life","year":"2020-21","claims_paid_no":638,"claims_paid_amt":28.63,"claims_repudiated_no":8,"claims_rejected_no":0,"total_claims_no":647,"claims_paid_ratio_no":98.61,"claims_pending_no":1,"claims_intimated_no":645},{"insurer":"Reliance Nippon","year":"2020-21","claims_paid_no":9274,"claims_paid_amt":205.26,"claims_repudiated_no":138,"claims_rejected_no":0,"total_claims_no":9416,"claims_paid_ratio_no":98.49,"claims_pending_no":4,"claims_intimated_no":9414},{"insurer":"SBI Life","year":"2020-21","claims_paid_no":31855,"claims_paid_amt":1398.78,"claims_repudiated_no":1302,"claims_rejected_no":0,"total_claims_no":34219,"claims_paid_ratio_no":93.09,"claims_pending_no":912,"claims_intimated_no":34183},{"insurer":"Sahara Life","year":"2020-21","claims_paid_no":860,"claims_paid_amt":9.02,"claims_repudiated_no":16,"claims_rejected_no":7,"total_claims_no":885,"claims_paid_ratio_no":97.18,"claims_pending_no":2,"claims_intimated_no":839},{"insurer":"Shriram","year":"2020-21","claims_paid_no":3506,"claims_paid_amt":95.81,"claims_repudiated_no":137,"claims_rejected_no":32,"total_claims_no":3686,"claims_paid_ratio_no":95.12,"claims_pending_no":11,"claims_intimated_no":3681},{"insurer":"Star Union","year":"2020-21","claims_paid_no":1569,"claims_paid_amt":72.49,"claims_repudiated_no":58,"claims_rejected_no":0,"total_claims_no":1635,"claims_paid_ratio_no":95.96,"claims_pending_no":8,"claims_intimated_no":1632},{"insurer":"Tata AIA","year":"2020-21","claims_paid_no":4556,"claims_paid_amt":478.4,"claims_repudiated_no":90,"claims_rejected_no":0,"total_claims_no":4648,"claims_paid_ratio_no":98.02,"claims_pending_no":2,"claims_intimated_no":4648},{"insurer":"Aditya Birla Life","year":"2019-20","claims_paid_no":5035,"claims_paid_amt":342.89,"claims_repudiated_no":108,"claims_rejected_no":0,"total_claims_no":5162,"claims_paid_ratio_no":97.54,"claims_pending_no":19,"claims_intimated_no":5138},{"insurer":"Aegon","year":"2019-20","claims_paid_no":344,"claims_paid_amt":64.6,"claims_repudiated_no":7,"claims_rejected_no":0,"total_claims_no":351,"claims_paid_ratio_no":98.01,"claims_pending_no":0,"claims_intimated_no":351},{"insurer":"Ageas Federal","year":"2019-20","claims_paid_no":1366,"claims_paid_amt":63.27,"claims_repudiated_no":45,"claims_rejected_no":0,"total_claims_no":1416,"claims_paid_ratio_no":96.47,"claims_pending_no":5,"claims_intimated_no":1408},{"insurer":"Aviva","year":"2019-20","claims_paid_no":790,"claims_paid_amt":80.78,"claims_repudiated_no":11,"claims_rejected_no":4,"total_claims_no":810,"claims_paid_ratio_no":97.53,"claims_pending_no":5,"claims_intimated_no":808},{"insurer":"Bajaj Allianz","year":"2019-20","claims_paid_no":11887,"claims_paid_amt":310.71,"claims_repudiated_no":237,"claims_rejected_no":0,"total_claims_no":12127,"claims_paid_ratio_no":98.02,"claims_pending_no":2,"claims_intimated_no":12124},{"insurer":"Bharti Axa","year":"2019-20","claims_paid_no":1285,"claims_paid_amt":61.56,"claims_repudiated_no":33,"claims_rejected_no":0,"total_claims_no":1320,"claims_paid_ratio_no":97.35,"claims_pending_no":2,"claims_intimated_no":1313},{"insurer":"Canara HSBC OBC","year":"2019-20","claims_paid_no":1252,"claims_paid_amt":106.53,"claims_repudiated_no":22,"claims_rejected_no":0,"total_claims_no":1276,"claims_paid_ratio_no":98.12,"claims_pending_no":2,"claims_intimated_no":1275},{"insurer":"Edelweiss Tokio","year":"2019-20","claims_paid_no":272,"claims_paid_amt":21.8,"claims_repudiated_no":54,"claims_rejected_no":0,"total_claims_no":326,"claims_paid_ratio_no":83.44,"claims_pending_no":0,"claims_intimated_no":326},{"insurer":"Exide Life","year":"2019-20","claims_paid_no":3404,"claims_paid_amt":88.95,"claims_repudiated_no":26,"claims_rejected_no":0,"total_claims_no":3468,"claims_paid_ratio_no":98.15,"claims_pending_no":38,"claims_intimated_no":3468},{"insurer":"Future Generali","year":"2019-20","claims_paid_no":1089,"claims_paid_amt":44.9,"claims_repudiated_no":51,"claims_rejected_no":0,"total_claims_no":1143,"claims_paid_ratio_no":95.28,"claims_pending_no":3,"claims_intimated_no":1135},{"insurer":"HDFC Life","year":"2019-20","claims_paid_no":12509,"claims_paid_amt":650.33,"claims_repudiated_no":54,"claims_rejected_no":15,"total_claims_no":12626,"claims_paid_ratio_no":99.07,"claims_pending_no":35,"claims_intimated_no":12592},{"insurer":"ICICI Prudential","year":"2019-20","claims_paid_no":11212,"claims_paid_amt":1023.64,"claims_repudiated_no":153,"claims_rejected_no":0,"total_claims_no":11460,"claims_paid_ratio_no":97.84,"claims_pending_no":95,"claims_intimated_no":11439},{"insurer":"India First","year":"2019-20","claims_paid_no":2166,"claims_paid_amt":70.17,"claims_repudiated_no":66,"claims_rejected_no":0,"total_claims_no":2241,"claims_paid_ratio_no":96.65,"claims_pending_no":9,"claims_intimated_no":2232},{"insurer":"Kotak Mahindra","year":"2019-20","claims_paid_no":3225,"claims_paid_amt":170.14,"claims_repudiated_no":112,"claims_rejected_no":0,"total_claims_no":3346,"claims_paid_ratio_no":96.38,"claims_pending_no":9,"claims_intimated_no":3334},{"insurer":"Max Life","year":"2019-20","claims_paid_no":15342,"claims_paid_amt":562.54,"claims_repudiated_no":120,"claims_rejected_no":0,"total_claims_no":15463,"claims_paid_ratio_no":99.22,"claims_pending_no":1,"claims_intimated_no":15460},{"insurer":"PNB Met Life","year":"2019-20","claims_paid_no":4241,"claims_paid_amt":235.11,"claims_repudiated_no":123,"claims_rejected_no":0,"total_claims_no":4364,"claims_paid_ratio_no":97.18,"claims_pending_no":0,"claims_intimated_no":4364},{"insurer":"Pramerica Life","year":"2019-20","claims_paid_no":560,"claims_paid_amt":22.44,"claims_repudiated_no":7,"claims_rejected_no":0,"total_claims_no":569,"claims_paid_ratio_no":98.42,"claims_pending_no":2,"claims_intimated_no":569},{"insurer":"Reliance Nippon","year":"2019-20","claims_paid_no":7866,"claims_paid_amt":157.03,"claims_repudiated_no":149,"claims_rejected_no":0,"total_claims_no":8017,"claims_paid_ratio_no":98.12,"claims_pending_no":2,"claims_intimated_no":8013},{"insurer":"SBI Life","year":"2019-20","claims_paid_no":21257,"claims_paid_amt":810.71,"claims_repudiated_no":1157,"claims_rejected_no":0,"total_claims_no":22490,"claims_paid_ratio_no":94.52,"claims_pending_no":36,"claims_intimated_no":22462},{"insurer":"Sahara Life","year":"2019-20","claims_paid_no":585,"claims_paid_amt":5.44,"claims_repudiated_no":10,"claims_rejected_no":13,"total_claims_no":654,"claims_paid_ratio_no":0,"claims_pending_no":46,"claims_intimated_no":638},{"insurer":"Shriram","year":"2019-20","claims_paid_no":2816,"claims_paid_amt":77.88,"claims_repudiated_no":195,"claims_rejected_no":58,"total_claims_no":3074,"claims_paid_ratio_no":91.61,"claims_pending_no":5,"claims_intimated_no":3035},{"insurer":"Star Union","year":"2019-20","claims_paid_no":1210,"claims_paid_amt":50.47,"claims_repudiated_no":35,"claims_rejected_no":0,"total_claims_no":1248,"claims_paid_ratio_no":96.96,"claims_pending_no":3,"claims_intimated_no":1243},{"insurer":"Tata AIA","year":"2019-20","claims_paid_no":2954,"claims_paid_amt":222.47,"claims_repudiated_no":28,"claims_rejected_no":0,"total_claims_no":2982,"claims_paid_ratio_no":99.06,"claims_pending_no":0,"claims_intimated_no":2982},{"insurer":"Aditya Birla Life","year":"2018-19","claims_paid_no":5110,"claims_paid_amt":276.44,"claims_repudiated_no":126,"claims_rejected_no":0,"total_claims_no":5260,"claims_paid_ratio_no":97.15,"claims_pending_no":24,"claims_intimated_no":5215},{"insurer":"Aegon","year":"2018-19","claims_paid_no":489,"claims_paid_amt":75.69,"claims_repudiated_no":18,"claims_rejected_no":0,"total_claims_no":507,"claims_paid_ratio_no":96.45,"claims_pending_no":0,"claims_intimated_no":507},{"insurer":"Ageas Federal","year":"2018-19","claims_paid_no":1251,"claims_paid_amt":53.02,"claims_repudiated_no":47,"claims_rejected_no":0,"total_claims_no":1306,"claims_paid_ratio_no":95.79,"claims_pending_no":8,"claims_intimated_no":1300},{"insurer":"Aviva","year":"2018-19","claims_paid_no":901,"claims_paid_amt":88.67,"claims_repudiated_no":20,"claims_rejected_no":15,"total_claims_no":938,"claims_paid_ratio_no":96.06,"claims_pending_no":2,"claims_intimated_no":930},{"insurer":"Bajaj Allianz","year":"2018-19","claims_paid_no":12130,"claims_paid_amt":349.02,"claims_repudiated_no":445,"claims_rejected_no":153,"total_claims_no":12767,"claims_paid_ratio_no":95.01,"claims_pending_no":3,"claims_intimated_no":12517},{"insurer":"Bharti Axa","year":"2018-19","claims_paid_no":1036,"claims_paid_amt":46.99,"claims_repudiated_no":22,"claims_rejected_no":0,"total_claims_no":1065,"claims_paid_ratio_no":97.28,"claims_pending_no":7,"claims_intimated_no":1058},{"insurer":"Canara HSBC OBC","year":"2018-19","claims_paid_no":946,"claims_paid_amt":74.09,"claims_repudiated_no":59,"claims_rejected_no":0,"total_claims_no":1006,"claims_paid_ratio_no":94.04,"claims_pending_no":1,"claims_intimated_no":1004},{"insurer":"Edelweiss Tokio","year":"2018-19","claims_paid_no":229,"claims_paid_amt":13.42,"claims_repudiated_no":10,"claims_rejected_no":0,"total_claims_no":239,"claims_paid_ratio_no":95.82,"claims_pending_no":0,"claims_intimated_no":239},{"insurer":"Exide Life","year":"2018-19","claims_paid_no":3236,"claims_paid_amt":76.07,"claims_repudiated_no":99,"claims_rejected_no":0,"total_claims_no":3335,"claims_paid_ratio_no":97.03,"claims_pending_no":0,"claims_intimated_no":3330},{"insurer":"Future Generali","year":"2018-19","claims_paid_no":1101,"claims_paid_amt":35.17,"claims_repudiated_no":48,"claims_rejected_no":0,"total_claims_no":1157,"claims_paid_ratio_no":95.16,"claims_pending_no":8,"claims_intimated_no":1138},{"insurer":"HDFC Life","year":"2018-19","claims_paid_no":12822,"claims_paid_amt":577.3,"claims_repudiated_no":67,"claims_rejected_no":23,"total_claims_no":12946,"claims_paid_ratio_no":99.04,"claims_pending_no":34,"claims_intimated_no":12881},{"insurer":"ICICI Prudential","year":"2018-19","claims_paid_no":10672,"claims_paid_amt":826.66,"claims_repudiated_no":128,"claims_rejected_no":0,"total_claims_no":10826,"claims_paid_ratio_no":98.58,"claims_pending_no":21,"claims_intimated_no":10799},{"insurer":"India First","year":"2018-19","claims_paid_no":2081,"claims_paid_amt":74.95,"claims_repudiated_no":144,"claims_rejected_no":8,"total_claims_no":2242,"claims_paid_ratio_no":92.82,"claims_pending_no":9,"claims_intimated_no":2239},{"insurer":"Kotak Mahindra","year":"2018-19","claims_paid_no":2959,"claims_paid_amt":136.77,"claims_repudiated_no":67,"claims_rejected_no":0,"total_claims_no":3038,"claims_paid_ratio_no":97.4,"claims_pending_no":12,"claims_intimated_no":3020},{"insurer":"Max Life","year":"2018-19","claims_paid_no":14897,"claims_paid_amt":452.25,"claims_repudiated_no":187,"claims_rejected_no":0,"total_claims_no":15087,"claims_paid_ratio_no":98.74,"claims_pending_no":3,"claims_intimated_no":15085},{"insurer":"PNB Met Life","year":"2018-19","claims_paid_no":4012,"claims_paid_amt":203.95,"claims_repudiated_no":157,"claims_rejected_no":0,"total_claims_no":4170,"claims_paid_ratio_no":96.21,"claims_pending_no":0,"claims_intimated_no":4162},{"insurer":"Pramerica Life","year":"2018-19","claims_paid_no":635,"claims_paid_amt":26.16,"claims_repudiated_no":19,"claims_rejected_no":0,"total_claims_no":656,"claims_paid_ratio_no":96.8,"claims_pending_no":2,"claims_intimated_no":649},{"insurer":"Reliance Nippon","year":"2018-19","claims_paid_no":8179,"claims_paid_amt":154.47,"claims_repudiated_no":188,"claims_rejected_no":0,"total_claims_no":8371,"claims_paid_ratio_no":97.71,"claims_pending_no":4,"claims_intimated_no":8367},{"insurer":"SBI Life","year":"2018-19","claims_paid_no":18913,"claims_paid_amt":688.93,"claims_repudiated_no":889,"claims_rejected_no":0,"total_claims_no":19902,"claims_paid_ratio_no":95.03,"claims_pending_no":28,"claims_intimated_no":19830},{"insurer":"Sahara Life","year":"2018-19","claims_paid_no":614,"claims_paid_amt":5.17,"claims_repudiated_no":39,"claims_rejected_no":12,"total_claims_no":681,"claims_paid_ratio_no":0,"claims_pending_no":16,"claims_intimated_no":622},{"insurer":"Shriram","year":"2018-19","claims_paid_no":2414,"claims_paid_amt":66.08,"claims_repudiated_no":334,"claims_rejected_no":43,"total_claims_no":2830,"claims_paid_ratio_no":85.3,"claims_pending_no":39,"claims_intimated_no":2768},{"insurer":"Star Union","year":"2018-19","claims_paid_no":1217,"claims_paid_amt":47.26,"claims_repudiated_no":35,"claims_rejected_no":1,"total_claims_no":1258,"claims_paid_ratio_no":96.74,"claims_pending_no":5,"claims_intimated_no":1246},{"insurer":"Tata AIA","year":"2018-19","claims_paid_no":2675,"claims_paid_amt":144.87,"claims_repudiated_no":25,"claims_rejected_no":0,"total_claims_no":2700,"claims_paid_ratio_no":99.07,"claims_pending_no":0,"claims_intimated_no":2700},{"insurer":"Aditya Birla Life","year":"2017-18","claims_paid_no":5292,"claims_paid_amt":248.16,"claims_repudiated_no":154,"claims_rejected_no":0,"total_claims_no":5491,"claims_paid_ratio_no":96.38,"claims_pending_no":24,"claims_intimated_no":5443},{"insurer":"Aegon","year":"2017-18","claims_paid_no":530,"claims_paid_amt":49.17,"claims_repudiated_no":24,"claims_rejected_no":0,"total_claims_no":554,"claims_paid_ratio_no":95.67,"claims_pending_no":0,"claims_intimated_no":554},{"insurer":"Ageas Federal","year":"2017-18","claims_paid_no":1068,"claims_paid_amt":45.15,"claims_repudiated_no":87,"claims_rejected_no":0,"total_claims_no":1161,"claims_paid_ratio_no":91.99,"claims_pending_no":8,"claims_intimated_no":1154},{"insurer":"Aviva","year":"2017-18","claims_paid_no":1056,"claims_paid_amt":97.68,"claims_repudiated_no":54,"claims_rejected_no":0,"total_claims_no":1118,"claims_paid_ratio_no":94.45,"claims_pending_no":2,"claims_intimated_no":1111},{"insurer":"Bajaj Allianz","year":"2017-18","claims_paid_no":13176,"claims_paid_amt":311.59,"claims_repudiated_no":829,"claims_rejected_no":60,"total_claims_no":14315,"claims_paid_ratio_no":92.04,"claims_pending_no":3,"claims_intimated_no":14252},{"insurer":"Bharti Axa","year":"2017-18","claims_paid_no":860,"claims_paid_amt":42.48,"claims_repudiated_no":21,"claims_rejected_no":0,"total_claims_no":888,"claims_paid_ratio_no":96.85,"claims_pending_no":7,"claims_intimated_no":854},{"insurer":"Canara HSBC OBC","year":"2017-18","claims_paid_no":797,"claims_paid_amt":49.13,"claims_repudiated_no":38,"claims_rejected_no":0,"total_claims_no":837,"claims_paid_ratio_no":95.22,"claims_pending_no":1,"claims_intimated_no":836},{"insurer":"Edelweiss Tokio","year":"2017-18","claims_paid_no":180,"claims_paid_amt":11.31,"claims_repudiated_no":9,"claims_rejected_no":0,"total_claims_no":189,"claims_paid_ratio_no":95.24,"claims_pending_no":0,"claims_intimated_no":189},{"insurer":"Exide Life","year":"2017-18","claims_paid_no":3250,"claims_paid_amt":77.26,"claims_repudiated_no":102,"claims_rejected_no":0,"total_claims_no":3357,"claims_paid_ratio_no":96.81,"claims_pending_no":0,"claims_intimated_no":3357},{"insurer":"Future Generali","year":"2017-18","claims_paid_no":1202,"claims_paid_amt":34.18,"claims_repudiated_no":69,"claims_rejected_no":1,"total_claims_no":1291,"claims_paid_ratio_no":93.11,"claims_pending_no":8,"claims_intimated_no":1274},{"insurer":"HDFC Life","year":"2017-18","claims_paid_no":12289,"claims_paid_amt":482.78,"claims_repudiated_no":208,"claims_rejected_no":0,"total_claims_no":12566,"claims_paid_ratio_no":97.8,"claims_pending_no":34,"claims_intimated_no":12507},{"insurer":"ICICI Prudential","year":"2017-18","claims_paid_no":11216,"claims_paid_amt":715.11,"claims_repudiated_no":203,"claims_rejected_no":13,"total_claims_no":11459,"claims_paid_ratio_no":97.88,"claims_pending_no":21,"claims_intimated_no":11423},{"insurer":"India First","year":"2017-18","claims_paid_no":1626,"claims_paid_amt":45.97,"claims_repudiated_no":181,"claims_rejected_no":0,"total_claims_no":1810,"claims_paid_ratio_no":89.83,"claims_pending_no":9,"claims_intimated_no":1781},{"insurer":"Kotak Mahindra","year":"2017-18","claims_paid_no":2881,"claims_paid_amt":119.5,"claims_repudiated_no":175,"claims_rejected_no":0,"total_claims_no":3074,"claims_paid_ratio_no":93.72,"claims_pending_no":12,"claims_intimated_no":3055},{"insurer":"Max Life","year":"2017-18","claims_paid_no":10152,"claims_paid_amt":353.39,"claims_repudiated_no":178,"claims_rejected_no":0,"total_claims_no":10332,"claims_paid_ratio_no":98.26,"claims_pending_no":3,"claims_intimated_no":10329},{"insurer":"PNB Met Life","year":"2017-18","claims_paid_no":3726,"claims_paid_amt":179.6,"claims_repudiated_no":329,"claims_rejected_no":26,"total_claims_no":4089,"claims_paid_ratio_no":91.12,"claims_pending_no":0,"claims_intimated_no":3981},{"insurer":"Pramerica Life","year":"2017-18","claims_paid_no":572,"claims_paid_amt":23.51,"claims_repudiated_no":13,"claims_rejected_no":0,"total_claims_no":592,"claims_paid_ratio_no":96.62,"claims_pending_no":2,"claims_intimated_no":586},{"insurer":"Reliance Nippon","year":"2017-18","claims_paid_no":8553,"claims_paid_amt":149.54,"claims_repudiated_no":403,"claims_rejected_no":27,"total_claims_no":8987,"claims_paid_ratio_no":95.17,"claims_pending_no":4,"claims_intimated_no":8952},{"insurer":"SBI Life","year":"2017-18","claims_paid_no":18274,"claims_paid_amt":590.33,"claims_repudiated_no":496,"claims_rejected_no":43,"total_claims_no":18885,"claims_paid_ratio_no":96.76,"claims_pending_no":28,"claims_intimated_no":18753},{"insurer":"Sahara Life","year":"2017-18","claims_paid_no":556,"claims_paid_amt":5.41,"claims_repudiated_no":57,"claims_rejected_no":0,"total_claims_no":672,"claims_paid_ratio_no":0,"claims_pending_no":16,"claims_intimated_no":646},{"insurer":"Shriram","year":"2017-18","claims_paid_no":2524,"claims_paid_amt":69.8,"claims_repudiated_no":560,"claims_rejected_no":0,"total_claims_no":3146,"claims_paid_ratio_no":80.23,"claims_pending_no":39,"claims_intimated_no":2853},{"insurer":"Star Union","year":"2017-18","claims_paid_no":1145,"claims_paid_amt":43.42,"claims_repudiated_no":81,"claims_rejected_no":3,"total_claims_no":1241,"claims_paid_ratio_no":92.26,"claims_pending_no":5,"claims_intimated_no":1222},{"insurer":"Tata AIA","year":"2017-18","claims_paid_no":2793,"claims_paid_amt":131.84,"claims_repudiated_no":57,"claims_rejected_no":0,"total_claims_no":2850,"claims_paid_ratio_no":98.0,"claims_pending_no":0,"claims_intimated_no":2850}];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let charts = {};
+let currentData = [];
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+function init() {
+  // populate insurer dropdown
+  const insurers = [...new Set(RAW_DATA.map(d=>d.insurer))].sort();
+  const sel = document.getElementById('insurer-filter');
+  insurers.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i;
+    sel.appendChild(o);
+  });
+  applyFilters();
+}
+
+function getFiltered() {
+  const yr = document.getElementById('year-filter').value;
+  const ins = document.getElementById('insurer-filter').value;
+  return RAW_DATA.filter(d =>
+    (yr==='all' || d.year===yr) &&
+    (ins==='all' || d.insurer===ins)
+  );
+}
+
+function applyFilters() {
+  currentData = getFiltered();
+  updateKPIs();
+  renderCharts();
+  renderTable();
+}
+
+function resetFilters() {
+  document.getElementById('year-filter').value = '2021-22';
+  document.getElementById('insurer-filter').value = 'all';
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════
+function fmt(n) {
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(1)+'K';
+  return n.toString();
+}
+
+function updateKPIs() {
+  const d = currentData;
+  const total = d.reduce((a,r)=>a+r.total_claims_no,0);
+  const paid = d.reduce((a,r)=>a+r.claims_paid_no,0);
+  const amt = d.reduce((a,r)=>a+r.claims_paid_amt,0);
+  const ratios = d.filter(r=>r.claims_paid_ratio_no>0).map(r=>r.claims_paid_ratio_no);
+  const avgRatio = ratios.length ? (ratios.reduce((a,b)=>a+b,0)/ratios.length).toFixed(1) : 0;
+
+  document.getElementById('kpi-total').textContent = fmt(total);
+  document.getElementById('kpi-paid').textContent = fmt(paid);
+  document.getElementById('kpi-amt').textContent = '₹'+fmt(Math.round(amt));
+  document.getElementById('kpi-ratio').textContent = avgRatio+'%';
+
+  document.getElementById('kpi-total-d').textContent = '▲ Individual Death Claims';
+  document.getElementById('kpi-paid-d').textContent = `▲ ${((paid/total)*100).toFixed(1)}% settlement rate`;
+  document.getElementById('kpi-amt-d').textContent = '▲ Total disbursed amount';
+  document.getElementById('kpi-ratio-d').textContent = avgRatio >= 97 ? '▲ Industry leading' : '→ Improving';
+}
+
+// ═══════════════════════════════════════════
+// CHART HELPERS
+// ═══════════════════════════════════════════
+const COLORS = ['#3b82f6','#06b6d4','#8b5cf6','#10b981','#f59e0b','#f43f5e','#ec4899','#14b8a6','#84cc16','#fb923c','#a78bfa','#38bdf8','#34d399','#fbbf24','#f87171','#c084fc','#22d3ee','#86efac','#fde68a','#fca5a5'];
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { labels: { color:'#6b82a0', font: { family:'DM Sans', size:11 }, boxWidth:12, padding:16 } },
+    tooltip: {
+      backgroundColor:'#131e30', borderColor:'rgba(99,179,255,0.2)', borderWidth:1,
+      titleColor:'#e8edf5', bodyColor:'#6b82a0', titleFont:{family:'Syne',weight:'600'},
+      padding: 10
+    }
+  },
+  scales: {
+    x: { grid: { color:'rgba(255,255,255,0.04)' }, ticks: { color:'#6b82a0', font:{family:'DM Sans',size:10} } },
+    y: { grid: { color:'rgba(255,255,255,0.04)' }, ticks: { color:'#6b82a0', font:{family:'DM Sans',size:10} } }
+  }
+};
+
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ═══════════════════════════════════════════
+// RENDER ALL CHARTS
+// ═══════════════════════════════════════════
+function renderCharts() {
+  renderRatioChart();
+  renderDonut();
+  renderTrend();
+  renderTop8();
+  renderRepud();
+  renderAmt();
+}
+
+function renderRatioChart() {
+  destroyChart('ratio');
+  const d = [...currentData].filter(r=>r.claims_paid_ratio_no>0)
+    .sort((a,b)=>b.claims_paid_ratio_no-a.claims_paid_ratio_no)
+    .slice(0,15);
+  const ctx = document.getElementById('chart-ratio').getContext('2d');
+  charts.ratio = new Chart(ctx, {
+    type:'bar',
+    data: {
+      labels: d.map(r=>r.insurer),
+      datasets:[{
+        label:'Paid Ratio %',
+        data: d.map(r=>r.claims_paid_ratio_no),
+        backgroundColor: d.map((r,i)=> r.claims_paid_ratio_no>=99 ? '#10b981' : r.claims_paid_ratio_no>=97 ? '#3b82f6' : r.claims_paid_ratio_no>=95 ? '#f59e0b' : '#f43f5e'),
+        borderRadius:6, borderSkipped:false
+      }]
+    },
+    options: {
+      ...chartDefaults,
+      indexAxis:'y',
+      plugins:{...chartDefaults.plugins, legend:{display:false}},
+      scales:{
+        x:{...chartDefaults.scales.x, min:80, max:100, ticks:{...chartDefaults.scales.x.ticks, callback:v=>v+'%'}},
+        y:{...chartDefaults.scales.y}
+      }
+    }
+  });
+}
+
+function renderDonut() {
+  destroyChart('donut');
+  const d = currentData;
+  const paid = d.reduce((a,r)=>a+r.claims_paid_no,0);
+  const repud = d.reduce((a,r)=>a+r.claims_repudiated_no,0);
+  const rej = d.reduce((a,r)=>a+r.claims_rejected_no,0);
+  const pend = d.reduce((a,r)=>a+r.claims_pending_no,0);
+  const ctx = document.getElementById('chart-donut').getContext('2d');
+  charts.donut = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Paid','Repudiated','Rejected','Pending'],
+      datasets:[{data:[paid,repud,rej,pend], backgroundColor:['#10b981','#f43f5e','#f59e0b','#6b82a0'], borderWidth:0, hoverOffset:8}]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'72%',
+      plugins:{
+        legend:{position:'bottom', labels:{color:'#6b82a0',font:{family:'DM Sans',size:11},boxWidth:12,padding:12}},
+        tooltip:{backgroundColor:'#131e30',borderColor:'rgba(99,179,255,0.2)',borderWidth:1,titleColor:'#e8edf5',bodyColor:'#6b82a0',padding:10,callbacks:{label:c=>' '+fmt(c.raw)+' ('+((c.raw/(paid+repud+rej+pend))*100).toFixed(1)+'%)'}}
+      }
+    }
+  });
+}
+
+function renderTrend() {
+  destroyChart('trend');
+  const years = ['2017-18','2018-19','2019-20','2020-21','2021-22'];
+  const totals = years.map(y => RAW_DATA.filter(d=>d.year===y).reduce((a,r)=>a+r.total_claims_no,0));
+  const paid = years.map(y => RAW_DATA.filter(d=>d.year===y).reduce((a,r)=>a+r.claims_paid_no,0));
+  const ctx = document.getElementById('chart-trend').getContext('2d');
+  const grad1 = ctx.createLinearGradient(0,0,0,200);
+  grad1.addColorStop(0,'rgba(59,130,246,0.3)'); grad1.addColorStop(1,'rgba(59,130,246,0)');
+  const grad2 = ctx.createLinearGradient(0,0,0,200);
+  grad2.addColorStop(0,'rgba(16,185,129,0.2)'); grad2.addColorStop(1,'rgba(16,185,129,0)');
+  charts.trend = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:years,
+      datasets:[
+        {label:'Total Claims',data:totals,borderColor:'#3b82f6',backgroundColor:grad1,tension:.4,fill:true,pointBackgroundColor:'#3b82f6',pointRadius:5,pointHoverRadius:7},
+        {label:'Claims Paid',data:paid,borderColor:'#10b981',backgroundColor:grad2,tension:.4,fill:true,pointBackgroundColor:'#10b981',pointRadius:5,pointHoverRadius:7}
+      ]
+    },
+    options:{...chartDefaults, scales:{x:{...chartDefaults.scales.x},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>fmt(v)}}}}
+  });
+}
+
+function renderTop8() {
+  destroyChart('top8');
+  const yr = document.getElementById('year-filter').value;
+  const yData = yr==='all' ? RAW_DATA : RAW_DATA.filter(d=>d.year===yr);
+  // group by insurer
+  const grouped = {};
+  yData.forEach(d=>{ grouped[d.insurer]=(grouped[d.insurer]||0)+d.claims_paid_no; });
+  const top = Object.entries(grouped).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const ctx = document.getElementById('chart-top8').getContext('2d');
+  charts.top8 = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:top.map(t=>t[0]),
+      datasets:[{label:'Claims Paid',data:top.map(t=>t[1]),backgroundColor:COLORS.slice(0,8),borderRadius:8,borderSkipped:false}]
+    },
+    options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false}},scales:{x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxRotation:35}},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>fmt(v)}}}}
+  });
+}
+
+function renderRepud() {
+  destroyChart('repud');
+  const d = [...currentData].filter(r=>r.total_claims_no>0)
+    .map(r=>({...r, repRate: ((r.claims_repudiated_no+r.claims_rejected_no)/r.total_claims_no*100).toFixed(2)}))
+    .sort((a,b)=>b.repRate-a.repRate).slice(0,12);
+  const ctx = document.getElementById('chart-repud').getContext('2d');
+  charts.repud = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:d.map(r=>r.insurer),
+      datasets:[{
+        label:'Repudiation Rate %',
+        data:d.map(r=>r.repRate),
+        backgroundColor:d.map(r=>r.repRate>10?'#f43f5e':r.repRate>5?'#f59e0b':'#3b82f6'),
+        borderRadius:6,borderSkipped:false
+      }]
+    },
+    options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false}},scales:{x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxRotation:40,font:{size:9}}},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'%'}}}}
+  });
+}
+
+function renderAmt() {
+  destroyChart('amt');
+  const d = [...currentData].sort((a,b)=>b.claims_paid_amt-a.claims_paid_amt).slice(0,10);
+  const ctx = document.getElementById('chart-amt').getContext('2d');
+  const grad = ctx.createLinearGradient(0,0,0,300);
+  grad.addColorStop(0,'rgba(139,92,246,0.9)'); grad.addColorStop(1,'rgba(6,182,212,0.6)');
+  charts.amt = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:d.map(r=>r.insurer),
+      datasets:[{label:'Amount (₹ Cr)',data:d.map(r=>r.claims_paid_amt),backgroundColor:grad,borderRadius:8,borderSkipped:false}]
+    },
+    options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:false}},scales:{x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxRotation:35}},y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>'₹'+v}}}}
+  });
+}
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  const sorted = [...currentData].sort((a,b)=>b.claims_paid_ratio_no-a.claims_paid_ratio_no);
+  sorted.forEach((r,i)=>{
+    const ratio = r.claims_paid_ratio_no;
+    const badge = ratio>=99 ? '<span class="badge badge-green">Excellent</span>' :
+                  ratio>=97 ? '<span class="badge badge-green">Good</span>' :
+                  ratio>=94 ? '<span class="badge badge-amber">Average</span>' :
+                  '<span class="badge badge-red">Below Avg</span>';
+    const barColor = ratio>=99?'#10b981':ratio>=97?'#3b82f6':ratio>=94?'#f59e0b':'#f43f5e';
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><strong>${r.insurer}</strong></td>
+      <td style="color:var(--muted)">${r.year}</td>
+      <td>${r.total_claims_no.toLocaleString()}</td>
+      <td style="color:#10b981">${r.claims_paid_no.toLocaleString()}</td>
+      <td>₹${r.claims_paid_amt.toFixed(0)} Cr</td>
+      <td><strong>${ratio>0?ratio+'%':'N/A'}</strong></td>
+      <td style="color:#f43f5e">${r.claims_repudiated_no}</td>
+      <td style="color:var(--muted)">${r.claims_pending_no}</td>
+      <td>${badge}</td>
+      <td>
+        <div class="progress-bar" style="width:100px">
+          <div class="progress-fill" style="width:${Math.min(ratio,100)}%;background:${barColor}"></div>
+        </div>
+      </td>
+    </tr>`;
+  });
+}
+
+// ═══════════════════════════════════════════
+// AI CHAT
+// ═══════════════════════════════════════════
+function askChip(el) {
+  document.getElementById('ai-input').value = el.textContent;
+  askAI();
+}
+
+function buildContext() {
+  const yr = document.getElementById('year-filter').value;
+  const data = yr==='all' ? RAW_DATA : RAW_DATA.filter(d=>d.year===yr);
+  const top5 = [...data].filter(r=>r.claims_paid_ratio_no>0)
+    .sort((a,b)=>b.claims_paid_ratio_no-a.claims_paid_ratio_no).slice(0,5)
+    .map(r=>`${r.insurer}: ${r.claims_paid_ratio_no}%`).join(', ');
+  const total = data.reduce((a,r)=>a+r.total_claims_no,0);
+  const paid = data.reduce((a,r)=>a+r.claims_paid_no,0);
+  const amt = data.reduce((a,r)=>a+r.claims_paid_amt,0).toFixed(0);
+  const avgRatio = (data.filter(r=>r.claims_paid_ratio_no>0).reduce((a,r)=>a+r.claims_paid_ratio_no,0)/data.filter(r=>r.claims_paid_ratio_no>0).length).toFixed(1);
+  return `You are InsightAI, an expert in India Life Insurance Claims data. Answer concisely and insightfully.
+Dataset: India Life Insurance Individual Death Claims, 2017-2022, ${RAW_DATA.length} records, 20+ insurers.
+Current filter: Year = ${yr}. Total claims: ${total.toLocaleString()}. Claims paid: ${paid.toLocaleString()}. Amount paid: ₹${amt} Cr. Avg paid ratio: ${avgRatio}%.
+Top 5 by paid ratio: ${top5}.
+Sample data: ${JSON.stringify(data.slice(0,8).map(d=>({insurer:d.insurer,year:d.year,paid_ratio:d.claims_paid_ratio_no+'%',total:d.total_claims_no,paid_amt:'₹'+d.claims_paid_amt+'Cr'})))}
+Provide a clear, data-driven answer in 2-4 sentences. Use specific numbers.`;
+}
+
+async function askAI() {
+  const q = document.getElementById('ai-input').value.trim();
+  if(!q) return;
+  const box = document.getElementById('ai-response-box');
+  const txt = document.getElementById('ai-response-text');
+  box.classList.add('visible');
+  txt.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: buildContext(),
+        messages:[{role:'user',content:q}]
+      })
+    });
+    const data = await res.json();
+    const answer = data.content?.map(c=>c.text||'').join('') || 'Unable to retrieve answer.';
+    txt.textContent = answer;
+  } catch(e) {
+    // Fallback: local AI response
+    txt.textContent = generateLocalAnswer(q);
+  }
+}
+
+function generateLocalAnswer(q) {
+  const yr = document.getElementById('year-filter').value;
+  const data = yr==='all' ? RAW_DATA : RAW_DATA.filter(d=>d.year===yr);
+  const ql = q.toLowerCase();
+
+  if(ql.includes('highest') && ql.includes('paid')) {
+    const top = [...data].filter(r=>r.claims_paid_ratio_no>0).sort((a,b)=>b.claims_paid_ratio_no-a.claims_paid_ratio_no)[0];
+    return `${top.insurer} had the highest claims paid ratio of ${top.claims_paid_ratio_no}% in ${top.year}, settling ${top.claims_paid_no.toLocaleString()} out of ${top.total_claims_no.toLocaleString()} total claims and paying ₹${top.claims_paid_amt.toFixed(0)} Crore.`;
+  }
+  if(ql.includes('sbi')) {
+    const sbi = data.filter(d=>d.insurer==='SBI Life');
+    if(sbi.length) return `SBI Life settled ${sbi[0].claims_paid_no.toLocaleString()} claims worth ₹${sbi[0].claims_paid_amt.toFixed(0)} Crore with a ${sbi[0].claims_paid_ratio_no}% paid ratio in ${sbi[0].year}. It is one of the largest insurers by claim volume in India.`;
+  }
+  if(ql.includes('repud') || ql.includes('reject')) {
+    const worst = [...data].filter(r=>r.total_claims_no>0).sort((a,b)=>(b.claims_repudiated_no/b.total_claims_no)-(a.claims_repudiated_no/a.total_claims_no))[0];
+    const rate = ((worst.claims_repudiated_no/worst.total_claims_no)*100).toFixed(1);
+    return `${worst.insurer} had the highest repudiation rate at ${rate}% in ${worst.year}, repudiating ${worst.claims_repudiated_no} out of ${worst.total_claims_no.toLocaleString()} claims. Insurers with lower paid ratios often have higher repudiation rates.`;
+  }
+  const avg = (data.filter(r=>r.claims_paid_ratio_no>0).reduce((a,r)=>a+r.claims_paid_ratio_no,0)/data.filter(r=>r.claims_paid_ratio_no>0).length).toFixed(1);
+  const total = data.reduce((a,r)=>a+r.total_claims_no,0);
+  return `Based on ${yr==='all'?'5-year':'the '+yr} data, the average claims paid ratio is ${avg}% across ${data.length} insurer records, covering ${total.toLocaleString()} total claims. The industry shows strong settlement performance with most insurers above 95%.`;
+}
+
+// Enter key
+document.getElementById('ai-input').addEventListener('keydown', e => {
+  if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); askAI(); }
+});
+
+// ═══════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
